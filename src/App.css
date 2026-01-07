@@ -1,0 +1,252 @@
+:root {
+  --bg: #f6f8f9;
+  --panel: #ffffff;
+  --panel-strong: #eef2f3;
+  --text: #0c1a1f;
+  --muted: #5a6b73;
+  --accent: #1db59b;
+  --accent-strong: #0b8d78;
+  --border: #d9e1e5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1416;
+    --panel: #151c1f;
+    --panel-strong: #1b2428;
+    --text: #eef2f3;
+    --muted: #9fb0b6;
+    --accent: #4dd0b0;
+    --accent-strong: #2fae94;
+    --border: #263238;
+  }
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 24px 18px;
+}
+
+.brand {
+  padding: 8px 8px 20px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.brand-subtitle {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.nav {
+  display: grid;
+  gap: 6px;
+}
+
+.nav-link {
+  padding: 10px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 120ms ease;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  border-color: var(--border);
+  background: var(--panel);
+}
+
+.nav-link.active {
+  color: #091214;
+  background: var(--accent);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.topbar-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.topbar-meta {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.main {
+  padding: 28px;
+  background: var(--bg);
+  flex: 1;
+}
+
+.page {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 24px;
+  border-radius: 16px;
+}
+
+.page h1 {
+  margin: 0 0 12px 0;
+  font-size: 22px;
+}
+
+.page-note {
+  color: var(--muted);
+  margin: 0;
+}
+
+.link-button {
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-button:hover {
+  color: var(--accent-strong);
+}
+
+.login {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 28px;
+}
+
+.login-card h1 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+}
+
+.login-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin-top: 16px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.field input {
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.mode-toggle button {
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--muted);
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.mode-toggle button.active {
+  background: var(--accent);
+  color: #091214;
+  border-color: transparent;
+}
+
+.login-card button[type='submit'] {
+  width: 100%;
+  margin-top: 18px;
+  padding: 12px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: #091214;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-card button[type='submit']:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.error {
+  margin-top: 12px;
+  color: #ff9380;
+  font-size: 13px;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .nav {
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  }
+}

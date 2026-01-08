@@ -1,6 +1,8 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { AccessProvider, useAccess } from '../auth/AccessContext'
 
 const navItems = [
   { to: '/', label: 'Overview' },
@@ -16,13 +18,20 @@ const navItems = [
   { to: '/system', label: 'System' },
 ]
 
-export default function AppShell() {
+function AppShellContent() {
   const { signOut, user } = useAuth()
+  const { unlockedMinutes } = useAccess()
   const { t } = useTranslation()
+  const location = useLocation()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [location.pathname])
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <aside className={menuOpen ? 'sidebar open' : 'sidebar'}>
         <div className="brand">
           <div className="brand-title">Kanidm WebUI NG</div>
           <div className="brand-subtitle">{t('shell.subtitle')}</div>
@@ -42,13 +51,38 @@ export default function AppShell() {
           ))}
         </nav>
       </aside>
+      {menuOpen && (
+        <button
+          className="nav-overlay"
+          type="button"
+          aria-label={t('shell.closeMenu')}
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
       <div className="content">
         <header className="topbar">
-          <div className="topbar-title">{t('shell.title')}</div>
+          <div className="topbar-title">
+            <button
+              className="menu-button"
+              type="button"
+              aria-label={t('shell.openMenu')}
+              onClick={() => setMenuOpen((prev) => !prev)}
+            >
+              ☰
+            </button>
+            <span>{t('shell.title')}</span>
+          </div>
           <div className="topbar-meta">
-            <span>
-              {user ? `${user.displayName} (${user.name})` : t('shell.sameOrigin')}
-            </span>
+            <div className="topbar-user">
+              <span>
+                {user ? `${user.displayName} (${user.name})` : t('shell.sameOrigin')}
+              </span>
+              {unlockedMinutes && (
+                <span className="profile-unlock">
+                  {t('profile.unlockedEdit', { minutes: unlockedMinutes })}
+                </span>
+              )}
+            </div>
             <button
               className="link-button"
               type="button"
@@ -65,5 +99,13 @@ export default function AppShell() {
         </main>
       </div>
     </div>
+  )
+}
+
+export default function AppShell() {
+  return (
+    <AccessProvider>
+      <AppShellContent />
+    </AccessProvider>
   )
 }

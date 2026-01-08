@@ -3,9 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import QRCode from 'qrcode'
 import {
-  authPasskey,
-  authPassword,
-  authTotp,
   beginCredentialUpdate,
   cancelCredentialUpdate,
   clearAuthToken,
@@ -13,17 +10,15 @@ import {
   fetchCredentialStatus,
   fetchRadiusSecret,
   fetchSelfProfile,
-  fetchUserAuthToken,
   regenerateRadiusSecret,
   sendCredentialUpdate,
   updatePersonProfile,
   deleteRadiusSecret,
-  reauthBegin,
 } from '../api'
-import type { AuthAllowed, AuthResponse } from '../api/types'
 import type { components } from '../api/schema'
-import { performPasskeyCreation, performPasskeyRequest } from '../auth/webauthn'
+import { performPasskeyCreation } from '../auth/webauthn'
 import { useAuth } from '../auth/AuthContext'
+import { useAccess } from '../auth/AccessContext'
 import CredentialSections from '../components/CredentialSections'
 import { buildTotpPayload } from '../utils/totp'
 
@@ -32,7 +27,6 @@ type CUSessionToken = components['schemas']['CUSessionToken']
 type CURegState = components['schemas']['CURegState']
 type CURegWarning = components['schemas']['CURegWarning']
 type TotpSecret = components['schemas']['TotpSecret']
-type UserAuthToken = components['schemas']['UserAuthToken']
 type CredentialDetail = components['schemas']['CredentialDetail']
 type CredentialStatus = components['schemas']['CredentialStatus']
 
@@ -42,61 +36,6 @@ type ProfileForm = {
   emails: string[]
 }
 
-const SELF_NAME_WRITE_GROUPS = ['idm_all_persons', 'idm_people_self_name_write']
-const SELF_MAIL_WRITE_GROUPS = ['idm_people_self_mail_write']
-
-function firstAllowed<T extends AuthAllowed>(
-  allowed: AuthAllowed[],
-  key: keyof T,
-): T | undefined {
-  return allowed.find((entry) => {
-    if (typeof entry === 'string') {
-      return entry === key
-    }
-    if (entry && typeof entry === 'object') {
-      return key in entry
-    }
-    return false
-  }) as T | undefined
-}
-
-function hasAllowed(allowed: AuthAllowed[], key: AuthAllowed) {
-  return allowed.some((entry) => {
-    if (typeof entry === 'string' && typeof key === 'string') {
-      return entry === key
-    }
-    if (typeof entry === 'object' && typeof key === 'string') {
-      return key in entry
-    }
-    return false
-  })
-}
-
-function parseUatExpiry(expiry: UserAuthToken['expiry']): number | null {
-  if (expiry === null || expiry === undefined) return null
-  if (typeof expiry === 'number') {
-    return expiry < 1_000_000_000_000 ? expiry * 1000 : expiry
-  }
-  if (typeof expiry === 'string') {
-    const parsed = Date.parse(expiry)
-    if (!Number.isNaN(parsed)) return parsed
-    const numeric = Number(expiry)
-    if (!Number.isNaN(numeric)) {
-      return numeric < 1_000_000_000_000 ? numeric * 1000 : numeric
-    }
-  }
-  return null
-}
-
-function isReadwrite(purpose: UserAuthToken['purpose'], now: number) {
-  if (!(typeof purpose === 'object' && purpose !== null && 'readwrite' in purpose)) {
-    return false
-  }
-  const expiry = parseUatExpiry(purpose.readwrite.expiry)
-  if (!expiry) return false
-  const cutoff = now + 60_000
-  return expiry > cutoff
-}
 
 function normalizeEmails(emails: string[]) {
   return emails.map((email) => email.trim()).filter(Boolean)
@@ -147,15 +86,6 @@ function describeWarning(warning: CURegWarning, t: (key: string) => string) {
   return String(warning)
 }
 
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const groupSet = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => groupSet.has(normalizeGroupName(entry)))
-}
-
 function hasPasswordCredential(cred: CredentialDetail | null | undefined) {
   if (!cred) return false
   if (cred.type_ === 'Password' || cred.type_ === 'GeneratedPassword') {
@@ -201,10 +131,6 @@ function summarizeTotp(status: CredentialStatus | null, t: (key: string, args?: 
   })
 }
 
-function authSucceeded(response: AuthResponse) {
-  return 'success' in response.state
-}
-
 export default function Profile() {
   const { setAuthenticated, user } = useAuth()
   const navigate = useNavigate()
@@ -213,8 +139,6 @@ export default function Profile() {
   const [message, setMessage] = useState<string | null>(null)
   const [profile, setProfile] = useState<ProfileForm | null>(null)
   const [profileId, setProfileId] = useState<string>('')
-  const [uat, setUat] = useState<UserAuthToken | null>(null)
-  const [memberOf, setMemberOf] = useState<string[]>([])
   const [initialName, setInitialName] = useState('')
   const [initialDisplayName, setInitialDisplayName] = useState('')
   const [initialEmails, setInitialEmails] = useState<string[]>([])
@@ -248,45 +172,16 @@ export default function Profile() {
   const [totpSha1Warning, setTotpSha1Warning] = useState(false)
   const [passwordNotice, setPasswordNotice] = useState<string | null>(null)
 
-  const [reauthOpen, setReauthOpen] = useState(false)
-  const [reauthAllowed, setReauthAllowed] = useState<AuthAllowed[]>([])
-  const [reauthMessage, setReauthMessage] = useState<string | null>(null)
-  const [reauthLoading, setReauthLoading] = useState(false)
-  const [reauthTotp, setReauthTotp] = useState('')
-  const [reauthPassword, setReauthPassword] = useState('')
-  const [now, setNow] = useState(() => Date.now())
+  const { canEdit, permissions, requestReauth } = useAccess()
 
-  const canEdit = useMemo(
-    () => (uat ? isReadwrite(uat.purpose, now) : false),
-    [uat, now],
-  )
-  const nameAllowed = useMemo(
-    () => hasAnyGroup(memberOf, SELF_NAME_WRITE_GROUPS),
-    [memberOf],
-  )
-  const emailAllowed = useMemo(
-    () => hasAnyGroup(memberOf, SELF_MAIL_WRITE_GROUPS),
-    [memberOf],
-  )
-  const canEditName = canEdit && nameAllowed
-  const canEditEmail = canEdit && emailAllowed
-  const hasAnyEditPermission = nameAllowed || emailAllowed
+  const canEditName = canEdit && permissions.nameAllowed
+  const canEditEmail = canEdit && permissions.emailAllowed
+  const canEditSelfWrite = canEdit && permissions.selfWriteAllowed
+  const hasAnyEditPermission = permissions.nameAllowed || permissions.emailAllowed
   const credentialWarnings = useMemo(
     () => (credStatus ? credStatus.warnings.map((warning) => describeWarning(warning, t)) : []),
     [credStatus, t],
   )
-  const rwExpiry = useMemo(
-    () => (uat && typeof uat.purpose === 'object' ? parseUatExpiry(uat.purpose.readwrite.expiry) : null),
-    [uat],
-  )
-  const unlockedMinutes =
-    rwExpiry && rwExpiry > now ? Math.max(1, Math.ceil((rwExpiry - now) / 60000)) : null
-
-  useEffect(() => {
-    if (!rwExpiry) return
-    const timer = window.setInterval(() => setNow(Date.now()), 30_000)
-    return () => window.clearInterval(timer)
-  }, [rwExpiry])
   const passwordConfigured = useMemo(
     () => hasPasswordCredential(credStatus?.primary),
     [credStatus],
@@ -326,11 +221,7 @@ export default function Profile() {
       setLoading(true)
       setMessage(null)
       try {
-        const profilePromise = user ? Promise.resolve(user) : fetchSelfProfile()
-        const [nextProfile, nextToken] = await Promise.all([
-          profilePromise,
-          fetchUserAuthToken(),
-        ])
+        const nextProfile = user ? user : await fetchSelfProfile()
         setProfile({
           name: nextProfile.name,
           displayName: nextProfile.displayName,
@@ -340,9 +231,7 @@ export default function Profile() {
         setInitialEmails(nextProfile.emails)
         setInitialName(nextProfile.name)
         setInitialDisplayName(nextProfile.displayName)
-        setMemberOf(nextProfile.memberOf)
         setPasskeyLabels([...nextProfile.passkeys, ...nextProfile.attestedPasskeys])
-        setUat(nextToken)
 
         try {
           const summary = await fetchCredentialStatus(nextProfile.uuid)
@@ -370,11 +259,6 @@ export default function Profile() {
 
     void load()
   }, [])
-
-  const refreshToken = async () => {
-    const nextToken = await fetchUserAuthToken()
-    setUat(nextToken)
-  }
 
   const handleProfileChange = (field: keyof ProfileForm, value: string) => {
     if (!profile) return
@@ -412,8 +296,8 @@ export default function Profile() {
   }
 
   const requestReauthIfNeeded = () => {
-    if (!canEdit && !reauthOpen && !reauthLoading) {
-      void beginReauth()
+    if (!canEdit) {
+      requestReauth()
     }
   }
 
@@ -438,7 +322,7 @@ export default function Profile() {
     if (!profile || !profileId) return
 
     if (!canEdit) {
-      void beginReauth()
+      requestReauth()
       return
     }
 
@@ -457,12 +341,11 @@ export default function Profile() {
     try {
       await updatePersonProfile({
         id: profileId,
-        name: nameAllowed && nameChanged ? name : undefined,
-        displayName: nameAllowed && displayNameChanged ? displayName : undefined,
-        emails: emailAllowed && emailChanged ? emails : undefined,
+        name: permissions.nameAllowed && nameChanged ? name : undefined,
+        displayName: permissions.nameAllowed && displayNameChanged ? displayName : undefined,
+        emails: permissions.emailAllowed && emailChanged ? emails : undefined,
       })
       await setAuthenticated()
-      await refreshToken()
       setMessage(t('profile.messageProfileUpdated'))
       setInitialEmails(emails)
       setInitialName(name)
@@ -476,8 +359,8 @@ export default function Profile() {
 
   const startCredentialSession = async () => {
     if (!profileId) return
-    if (!canEdit) {
-      void beginReauth()
+    if (!canEditSelfWrite) {
+      requestReauth()
       return
     }
     setPasswordNotice(null)
@@ -757,8 +640,8 @@ export default function Profile() {
 
   const regenerateRadius = async () => {
     if (!profileId) return
-    if (!canEdit) {
-      void beginReauth()
+    if (!canEditSelfWrite) {
+      requestReauth()
       return
     }
     setRadiusLoading(true)
@@ -777,8 +660,8 @@ export default function Profile() {
 
   const clearRadius = async () => {
     if (!profileId) return
-    if (!canEdit) {
-      void beginReauth()
+    if (!canEditSelfWrite) {
+      requestReauth()
       return
     }
     setRadiusLoading(true)
@@ -795,121 +678,6 @@ export default function Profile() {
     }
   }
 
-  const beginReauth = async () => {
-    setReauthOpen(true)
-    setReauthLoading(true)
-    setReauthMessage(null)
-    setReauthAllowed([])
-    setReauthPassword('')
-    setReauthTotp('')
-    try {
-      const response = await reauthBegin()
-      if (authSucceeded(response)) {
-        await setAuthenticated()
-        await refreshToken()
-        setReauthOpen(false)
-        return
-      }
-      if ('continue' in response.state) {
-        setReauthAllowed(response.state.continue)
-      } else {
-        setReauthMessage(t('profile.messageReauthStartFailed'))
-      }
-    } catch (error) {
-      setReauthMessage(error instanceof Error ? error.message : t('profile.messageReauthFailed'))
-    } finally {
-      setReauthLoading(false)
-    }
-  }
-
-  const handleReauthPassword = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setReauthLoading(true)
-    setReauthMessage(null)
-    try {
-      if (hasAllowed(reauthAllowed, 'totp') && !reauthTotp) {
-        setReauthMessage(t('profile.messageReauthTotpRequired'))
-        setReauthLoading(false)
-        return
-      }
-      if (hasAllowed(reauthAllowed, 'password') && !reauthPassword) {
-        setReauthMessage(t('profile.messageReauthPasswordRequired'))
-        setReauthLoading(false)
-        return
-      }
-      let response: AuthResponse | null = null
-      if (hasAllowed(reauthAllowed, 'totp')) {
-        response = await authTotp(Number(reauthTotp))
-        if ('continue' in response.state) {
-          setReauthAllowed(response.state.continue)
-          if (hasAllowed(response.state.continue, 'password')) {
-            if (!reauthPassword) {
-              setReauthMessage(t('profile.messageReauthPasswordRequired'))
-              setReauthLoading(false)
-              return
-            }
-            response = await authPassword(reauthPassword)
-          }
-        }
-      } else {
-        response = await authPassword(reauthPassword)
-        if ('continue' in response.state) {
-          setReauthAllowed(response.state.continue)
-          if (hasAllowed(response.state.continue, 'totp')) {
-            if (!reauthTotp) {
-              setReauthMessage(t('profile.messageReauthTotpRequired'))
-              setReauthLoading(false)
-              return
-            }
-            response = await authTotp(Number(reauthTotp))
-          }
-        }
-      }
-
-      if (response && authSucceeded(response)) {
-        await setAuthenticated()
-        await refreshToken()
-        setReauthOpen(false)
-        setReauthPassword('')
-        setReauthTotp('')
-      } else {
-        setReauthMessage(t('profile.messageReauthIncomplete'))
-      }
-    } catch (error) {
-      setReauthMessage(error instanceof Error ? error.message : t('profile.messageReauthFailed'))
-    } finally {
-      setReauthLoading(false)
-    }
-  }
-
-  const handleReauthPasskey = async () => {
-    const passkeyAllowed = firstAllowed(reauthAllowed, 'passkey')
-    if (!passkeyAllowed || typeof passkeyAllowed !== 'object') {
-      setReauthMessage(t('profile.messageReauthPasskeyUnavailable'))
-      return
-    }
-    setReauthLoading(true)
-    setReauthMessage(null)
-    try {
-      const credential = await performPasskeyRequest(
-        passkeyAllowed.passkey as Record<string, unknown>,
-      )
-      const response = await authPasskey(credential as Record<string, unknown>)
-      if (authSucceeded(response)) {
-        await setAuthenticated()
-        await refreshToken()
-        setReauthOpen(false)
-      } else {
-        setReauthMessage(t('profile.messageReauthPasskeyFailed'))
-      }
-    } catch (error) {
-      setReauthMessage(
-        error instanceof Error ? error.message : t('profile.messageReauthPasskeyFailed'),
-      )
-    } finally {
-      setReauthLoading(false)
-    }
-  }
 
   if (loading) {
     return (
@@ -928,11 +696,6 @@ export default function Profile() {
           <p className="page-note">{t('profile.subtitle')}</p>
         </div>
         <div className="profile-status">
-          {unlockedMinutes && (
-            <span className="profile-unlock">
-              {t('profile.unlockedEdit', { minutes: unlockedMinutes })}
-            </span>
-          )}
         </div>
       </div>
 
@@ -951,8 +714,8 @@ export default function Profile() {
                 <input
                   value={profile.name}
                   onChange={(event) => handleProfileChange('name', event.target.value)}
-                  disabled={!nameAllowed}
-                  readOnly={!canEditName && nameAllowed}
+                  disabled={!permissions.nameAllowed}
+                  readOnly={!canEditName && permissions.nameAllowed}
                   onFocus={requestReauthIfNeeded}
                   onClick={requestReauthIfNeeded}
                 />
@@ -964,13 +727,13 @@ export default function Profile() {
                   onChange={(event) =>
                     handleProfileChange('displayName', event.target.value)
                   }
-                  disabled={!nameAllowed}
-                  readOnly={!canEditName && nameAllowed}
+                  disabled={!permissions.nameAllowed}
+                  readOnly={!canEditName && permissions.nameAllowed}
                   onFocus={requestReauthIfNeeded}
                   onClick={requestReauthIfNeeded}
                 />
               </label>
-              {!nameAllowed && (
+              {!permissions.nameAllowed && (
                 <p className="muted-text">
                   {t('profile.namePermission')}
                 </p>
@@ -983,18 +746,18 @@ export default function Profile() {
                     className="link-button"
                     type="button"
                     onClick={() => {
-                      if (!canEditEmail && emailAllowed) {
+                      if (!canEditEmail && permissions.emailAllowed) {
                         requestReauthIfNeeded()
                         return
                       }
                       handleEmailAdd()
                     }}
-                    disabled={!emailAllowed}
+                    disabled={!permissions.emailAllowed}
                   >
                     {t('profile.addEmail')}
                   </button>
                 </div>
-                {!emailAllowed && (
+                {!permissions.emailAllowed && (
                   <p className="muted-text">
                     {t('profile.emailPermission')}
                   </p>
@@ -1008,8 +771,8 @@ export default function Profile() {
                         value={email}
                         onChange={(event) => handleEmailChange(index, event.target.value)}
                         placeholder={t('profile.emailPlaceholder')}
-                        disabled={!emailAllowed}
-                        readOnly={!canEditEmail && emailAllowed}
+                        disabled={!permissions.emailAllowed}
+                        readOnly={!canEditEmail && permissions.emailAllowed}
                         onFocus={requestReauthIfNeeded}
                         onClick={requestReauthIfNeeded}
                       />
@@ -1017,13 +780,13 @@ export default function Profile() {
                         className="ghost-button"
                         type="button"
                         onClick={() => {
-                          if (!canEditEmail && emailAllowed) {
+                          if (!canEditEmail && permissions.emailAllowed) {
                             requestReauthIfNeeded()
                             return
                           }
                           handleEmailRemove(index)
                         }}
-                        disabled={!emailAllowed}
+                        disabled={!permissions.emailAllowed}
                       >
                         {t('profile.removeEmail')}
                       </button>
@@ -1073,7 +836,7 @@ export default function Profile() {
               onClick={() => {
                 void startCredentialSession()
               }}
-              disabled={credLoading}
+              disabled={credLoading || !permissions.selfWriteAllowed}
             >
               {t('profile.updateCredentials')}
             </button>
@@ -1203,7 +966,7 @@ export default function Profile() {
                 onClick={() => {
                   void regenerateRadius()
                 }}
-                disabled={radiusLoading}
+                disabled={radiusLoading || !permissions.selfWriteAllowed}
               >
                 {radiusSecret ? t('profile.radiusRegenerate') : t('profile.radiusGenerate')}
               </button>
@@ -1213,7 +976,7 @@ export default function Profile() {
                 onClick={() => {
                   void clearRadius()
                 }}
-                disabled={radiusLoading || !radiusSecret}
+                disabled={radiusLoading || !radiusSecret || !permissions.selfWriteAllowed}
               >
                 {t('profile.radiusRemove')}
               </button>
@@ -1221,75 +984,6 @@ export default function Profile() {
           </div>
         </section>
       </div>
-
-      {reauthOpen && (
-        <div className="modal-backdrop">
-          <div className="modal">
-            <header>
-              <h3>{t('profile.reauthTitle')}</h3>
-              <p>{t('profile.reauthSubtitle')}</p>
-            </header>
-            {reauthMessage && <p className="feedback">{reauthMessage}</p>}
-
-            {reauthAllowed.length > 0 && (
-              <div className="reauth-options">
-                {firstAllowed(reauthAllowed, 'passkey') && (
-                  <button
-                    className="secondary-button"
-                    type="button"
-                    onClick={() => {
-                      void handleReauthPasskey()
-                    }}
-                    disabled={reauthLoading}
-                  >
-                    {t('profile.reauthUsePasskey')}
-                  </button>
-                )}
-
-                {(hasAllowed(reauthAllowed, 'password') ||
-                  hasAllowed(reauthAllowed, 'totp')) && (
-                    <form className="reauth-form" onSubmit={handleReauthPassword}>
-                      {hasAllowed(reauthAllowed, 'totp') && (
-                        <label className="field">
-                          <span>{t('profile.reauthTotpLabel')}</span>
-                          <input
-                            value={reauthTotp}
-                            onChange={(event) => setReauthTotp(event.target.value)}
-                            placeholder="123456"
-                          />
-                        </label>
-                      )}
-                      {hasAllowed(reauthAllowed, 'password') && (
-                        <label className="field">
-                          <span>{t('profile.reauthPasswordLabel')}</span>
-                          <input
-                            type="password"
-                            value={reauthPassword}
-                            onChange={(event) => setReauthPassword(event.target.value)}
-                          />
-                        </label>
-                      )}
-                      <button type="submit" disabled={reauthLoading}>
-                        {t('profile.reauthConfirm')}
-                      </button>
-                    </form>
-                )}
-              </div>
-            )}
-
-            <div className="modal-actions">
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={() => setReauthOpen(false)}
-                disabled={reauthLoading}
-              >
-                {t('profile.reauthCancel')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </section>
   )

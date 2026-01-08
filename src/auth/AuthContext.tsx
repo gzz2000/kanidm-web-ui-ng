@@ -1,13 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
-import { clearAuthToken, fetchWhoami, logout } from '../api'
+import type { SelfProfile } from '../api'
+import { clearAuthToken, fetchSelfProfile, logout } from '../api'
 import { tokenStore } from '../api/http'
 
 export type AuthStatus = 'checking' | 'authenticated' | 'unauthenticated'
 
-export type UserProfile = {
-  name: string
-  displayName: string
-}
+export type UserProfile = SelfProfile
 
 type AuthContextValue = {
   status: AuthStatus
@@ -23,12 +21,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null)
 
   const refreshUser = useCallback(async () => {
-    const profile = await fetchWhoami()
+    const profile = await fetchSelfProfile()
     setUser(profile)
     return profile
   }, [])
 
   useEffect(() => {
+    if (status !== 'checking') return
+
     let cancelled = false
 
     const check = async () => {
@@ -53,12 +53,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    check()
+    void check()
+
+    const handleAuthExpired = () => {
+      if (!cancelled) {
+        setStatus('unauthenticated')
+        setUser(null)
+      }
+    }
+
+    window.addEventListener('kanidm:auth-expired', handleAuthExpired)
 
     return () => {
       cancelled = true
+      window.removeEventListener('kanidm:auth-expired', handleAuthExpired)
     }
-  }, [])
+  }, [status, refreshUser])
+
+  useEffect(() => {
+    if (status === 'checking' && user) {
+      setStatus('authenticated')
+    }
+  }, [status, user])
 
   const value = useMemo(
     () => ({

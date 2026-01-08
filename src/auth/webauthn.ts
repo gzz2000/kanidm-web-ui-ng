@@ -41,6 +41,36 @@ function convertRequestOptions(options: Record<string, unknown>): PublicKeyCrede
   return publicKey as PublicKeyCredentialRequestOptions
 }
 
+function convertCreationOptions(options: Record<string, unknown>): PublicKeyCredentialCreationOptions {
+  const container =
+    options && typeof options === 'object' && 'publicKey' in options
+      ? (options.publicKey as Record<string, unknown>)
+      : options
+  const publicKey = structuredClone(container) as Record<string, unknown>
+
+  if (typeof publicKey.challenge === 'string') {
+    publicKey.challenge = base64UrlToBuffer(publicKey.challenge)
+  }
+
+  if (publicKey.user && typeof publicKey.user === 'object' && typeof publicKey.user.id === 'string') {
+    publicKey.user = {
+      ...publicKey.user,
+      id: base64UrlToBuffer(publicKey.user.id),
+    }
+  }
+
+  if (Array.isArray(publicKey.excludeCredentials)) {
+    publicKey.excludeCredentials = publicKey.excludeCredentials.map((cred) => {
+      if (cred && typeof cred === 'object' && typeof cred.id === 'string') {
+        return { ...cred, id: base64UrlToBuffer(cred.id) }
+      }
+      return cred
+    })
+  }
+
+  return publicKey as PublicKeyCredentialCreationOptions
+}
+
 function serializeAssertion(credential: PublicKeyCredential) {
   const response = credential.response as AuthenticatorAssertionResponse
   return {
@@ -56,6 +86,23 @@ function serializeAssertion(credential: PublicKeyCredential) {
   }
 }
 
+function serializeAttestation(credential: PublicKeyCredential) {
+  const response = credential.response as AuthenticatorAttestationResponse
+  return {
+    id: credential.id,
+    rawId: bufferToBase64Url(credential.rawId),
+    type: credential.type,
+    response: {
+      attestationObject: bufferToBase64Url(response.attestationObject),
+      clientDataJSON: bufferToBase64Url(response.clientDataJSON),
+    },
+    clientExtensionResults: credential.getClientExtensionResults
+      ? credential.getClientExtensionResults()
+      : {},
+    transports: response.getTransports ? response.getTransports() : undefined,
+  }
+}
+
 export async function performPasskeyRequest(options: Record<string, unknown>) {
   const publicKey = convertRequestOptions(options)
   const credential = (await navigator.credentials.get({
@@ -67,4 +114,17 @@ export async function performPasskeyRequest(options: Record<string, unknown>) {
   }
 
   return serializeAssertion(credential)
+}
+
+export async function performPasskeyCreation(options: Record<string, unknown>) {
+  const publicKey = convertCreationOptions(options)
+  const credential = (await navigator.credentials.create({
+    publicKey,
+  })) as PublicKeyCredential | null
+
+  if (!credential) {
+    throw new Error('No credential returned from passkey creation')
+  }
+
+  return serializeAttestation(credential)
 }

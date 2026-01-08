@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
@@ -46,6 +46,14 @@ export default function Login() {
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [retry, setRetry] = useState(false)
+
+  useEffect(() => {
+    const notice = sessionStorage.getItem('kanidm.login_notice')
+    if (notice) {
+      setMessage(notice)
+      sessionStorage.removeItem('kanidm.login_notice')
+    }
+  }, [])
 
   const handleSuccess = async () => {
     await setAuthenticated()

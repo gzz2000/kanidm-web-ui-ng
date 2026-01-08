@@ -10,6 +10,7 @@ import Oauth2Clients from '../pages/Oauth2Clients'
 import People from '../pages/People'
 import Posix from '../pages/Posix'
 import Profile from '../pages/Profile'
+import ResetCredentials from '../pages/ResetCredentials'
 import ServiceAccounts from '../pages/ServiceAccounts'
 import SshKeys from '../pages/SshKeys'
 import System from '../pages/System'
@@ -18,6 +19,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/reset',
+    element: <ResetCredentials />,
   },
   {
     path: '/',

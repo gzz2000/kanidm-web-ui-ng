@@ -1,4 +1,5 @@
 export * from './auth'
+export * from './credential'
 export * from './client'
 export * from './types'
 export * from './user'

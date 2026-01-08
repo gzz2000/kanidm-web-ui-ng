@@ -34,6 +34,7 @@ export async function request<T>(
   if (!response.ok) {
     if (response.status === 401) {
       tokenStore.clear()
+      window.dispatchEvent(new Event('kanidm:auth-expired'))
     }
     const text = await response.text()
     throw new Error(`Request failed (${response.status}): ${text}`)

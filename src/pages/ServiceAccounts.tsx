@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { fetchServiceAccounts } from '../api'
 import type { ServiceAccountSummary } from '../api/serviceAccounts'
 import { useAccess } from '../auth/AccessContext'
+import { useAuth } from '../auth/AuthContext'
 
 function normalizeGroupName(group: string) {
   return group.split('@')[0]?.toLowerCase() ?? ''
@@ -22,7 +23,9 @@ export default function ServiceAccounts() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { memberOf } = useAccess()
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
+  const [hideUnmanaged, setHideUnmanaged] = useState(true)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<ServiceAccountSummary[]>([])
@@ -32,6 +35,21 @@ export default function ServiceAccounts() {
     () => hasAnyGroup(memberOf, ['idm_service_account_admins']),
     [memberOf],
   )
+  const canManageAccount = useMemo(() => {
+    if (!user) return () => false
+    const userGroups = new Set(memberOf.map(normalizeGroupName))
+    const isServiceAdmin = hasAnyGroup(memberOf, ['idm_service_account_admins'])
+    return (account: ServiceAccountSummary) => {
+      if (isServiceAdmin) return true
+      const entryManagers = account.entryManagedBy.map((entry) => entry.toLowerCase())
+      return (
+        entryManagers.includes(user.uuid.toLowerCase()) ||
+        entryManagers.includes(user.name.toLowerCase()) ||
+        entryManagers.some((entry) => normalizeGroupName(entry) === normalizeGroupName(user.name)) ||
+        entryManagers.some((entry) => userGroups.has(normalizeGroupName(entry)))
+      )
+    }
+  }, [memberOf, user])
 
   useEffect(() => {
     let active = true
@@ -61,14 +79,15 @@ export default function ServiceAccounts() {
 
   const filteredAccounts = useMemo(() => {
     const needle = query.trim().toLowerCase()
-    if (!needle) return accounts
-    return accounts.filter((account) => {
+    const filtered = accounts.filter((account) => {
       if (account.displayName.toLowerCase().includes(needle)) return true
       if (account.name.toLowerCase().includes(needle)) return true
       if (account.emails.some((email) => email.toLowerCase().includes(needle))) return true
       return false
     })
-  }, [accounts, query])
+    if (!hideUnmanaged) return filtered
+    return filtered.filter((account) => canManageAccount(account))
+  }, [accounts, canManageAccount, hideUnmanaged, query])
 
   return (
     <section className="page service-accounts-page">
@@ -98,6 +117,14 @@ export default function ServiceAccounts() {
           placeholder={t('serviceAccounts.searchPlaceholder')}
           onChange={(event) => setQuery(event.target.value)}
         />
+        <label className="checkbox">
+          <input
+            type="checkbox"
+            checked={hideUnmanaged}
+            onChange={(event) => setHideUnmanaged(event.target.checked)}
+          />
+          <span>{t('serviceAccounts.hideUnmanaged')}</span>
+        </label>
       </div>
 
       {message && <p className="feedback">{message}</p>}

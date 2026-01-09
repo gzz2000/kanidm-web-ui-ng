@@ -2,6 +2,8 @@ import { createBrowserRouter } from 'react-router-dom'
 import AppShell from '../app/AppShell'
 import ProtectedLayout from '../auth/ProtectedLayout'
 import Apps from '../pages/Apps'
+import GroupCreate from '../pages/GroupCreate'
+import GroupDetail from '../pages/GroupDetail'
 import Groups from '../pages/Groups'
 import Login from '../pages/Login'
 import Oauth2Clients from '../pages/Oauth2Clients'
@@ -37,6 +39,8 @@ export const router = createBrowserRouter([
       { path: 'people/new', element: <PersonCreate /> },
       { path: 'people/:id', element: <PersonDetail /> },
       { path: 'groups', element: <Groups /> },
+      { path: 'groups/new', element: <GroupCreate /> },
+      { path: 'groups/:id', element: <GroupDetail /> },
       { path: 'service-accounts', element: <ServiceAccounts /> },
       { path: 'service-accounts/new', element: <ServiceAccountCreate /> },
       { path: 'service-accounts/:id', element: <ServiceAccountDetail /> },

@@ -159,7 +159,18 @@
   gap: 16px;
 }
 
+.groups-page {
+  display: grid;
+  gap: 16px;
+}
+
 .people-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.groups-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -170,7 +181,20 @@
   align-items: flex-start;
 }
 
+.groups-actions {
+  display: flex;
+  align-items: flex-start;
+}
+
 .people-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.groups-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -188,7 +212,22 @@
   color: var(--text);
 }
 
+.groups-search {
+  min-width: 240px;
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+}
+
 .people-list {
+  display: grid;
+  gap: 10px;
+}
+
+.groups-list {
   display: grid;
   gap: 10px;
 }
@@ -211,7 +250,30 @@
   font: inherit;
 }
 
+.groups-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(200px, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 160ms ease, transform 160ms ease;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
 .people-row:hover {
+  border-color: rgba(29, 181, 155, 0.45);
+  transform: translateY(-1px);
+}
+
+.groups-row:hover {
   border-color: rgba(29, 181, 155, 0.45);
   transform: translateY(-1px);
 }
@@ -370,6 +432,13 @@
   font-weight: 600;
 }
 
+.groups-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+}
+
 .service-accounts-name {
   display: inline-flex;
   align-items: center;
@@ -378,6 +447,14 @@
 }
 
 .people-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.groups-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
@@ -394,6 +471,12 @@
 }
 
 .people-cell {
+  font-size: 13px;
+  color: var(--text);
+  text-align: right;
+}
+
+.groups-cell {
   font-size: 13px;
   color: var(--text);
   text-align: right;
@@ -674,6 +757,18 @@
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.badge-button {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: inherit;
+  cursor: pointer;
+}
+
+.badge-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .badge-sharp {
@@ -1037,6 +1132,17 @@
   gap: 10px;
 }
 
+.group-membership {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.group-membership h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
 .passkey-list li {
   display: flex;
   justify-content: space-between;
@@ -1300,6 +1406,14 @@
   }
 
   .people-cell {
+    text-align: left;
+  }
+
+  .groups-row {
+    grid-template-columns: 1fr;
+  }
+
+  .groups-cell {
     text-align: left;
   }
 

@@ -5,6 +5,7 @@ import { createServiceAccount } from '../api'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
+import { applyDomain } from '../utils/strings'
 
 function normalizeGroupName(group: string) {
   return group.split('@')[0]?.toLowerCase() ?? ''
@@ -80,7 +81,7 @@ export default function ServiceAccountCreate() {
       await createServiceAccount({
         name: trimmedName,
         displayName: trimmedDisplay,
-        entryManagedBy,
+        entryManagedBy: applyDomain(entryManagedBy.trim(), domainSuffix),
         description: description.trim() || undefined,
       })
       navigate(`/service-accounts/${encodeURIComponent(trimmedName)}`)
@@ -147,7 +148,6 @@ export default function ServiceAccountCreate() {
               includePeople
               includeGroups
               includeServiceAccounts
-              formatValue={(option) => (domainSuffix ? `${option.name}@${domainSuffix}` : option.name)}
               onFocus={requestReauthIfNeeded}
               onChange={setEntryManagedBy}
             />

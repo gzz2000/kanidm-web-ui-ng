@@ -13,6 +13,7 @@ import {
   updatePerson,
 } from '../api'
 import { useAccess } from '../auth/AccessContext'
+import { stripDomain } from '../utils/strings'
 
 type CredentialStatus = components['schemas']['CredentialStatus']
 type UnixUserToken = components['schemas']['UnixUserToken']
@@ -862,7 +863,7 @@ export default function PersonDetail() {
                 {personMeta?.directMemberOf && personMeta.directMemberOf.length > 0 ? (
                   personMeta.directMemberOf.map((group) => (
                     <span className="badge" key={`direct-${group}`}>
-                      {group}
+                      {stripDomain(group)}
                     </span>
                   ))
                 ) : (
@@ -878,7 +879,7 @@ export default function PersonDetail() {
                     .filter((group) => !personMeta.directMemberOf.includes(group))
                     .map((group) => (
                       <span className="badge" key={`inherited-${group}`}>
-                        {group}
+                        {stripDomain(group)}
                       </span>
                     ))
                 ) : (

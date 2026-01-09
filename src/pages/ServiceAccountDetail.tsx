@@ -28,6 +28,7 @@ import type { components } from '../api/schema'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
+import { applyDomain, stripDomain } from '../utils/strings'
 
 function normalizeGroupName(group: string) {
   return group.split('@')[0]?.toLowerCase() ?? ''
@@ -249,7 +250,7 @@ export default function ServiceAccountDetail() {
       displayName: account.displayName,
       description: account.description ?? '',
       emails: account.emails,
-      entryManagedBy,
+      entryManagedBy: stripDomain(entryManagedBy),
       validFrom: toLocalDateTime(account.accountValidFrom),
       expiresAt: toLocalDateTime(account.accountExpire),
     }
@@ -387,7 +388,9 @@ export default function ServiceAccountDetail() {
         name: nameChanged ? form.name.trim() : undefined,
         displayName: displayNameChanged ? form.displayName.trim() : undefined,
         description: descriptionChanged ? form.description.trim() : undefined,
-        entryManagedBy: entryManagerChanged ? form.entryManagedBy : undefined,
+        entryManagedBy: entryManagerChanged
+          ? applyDomain(form.entryManagedBy.trim(), domainSuffix)
+          : undefined,
         emails: emailChanged ? normalizedEmails : undefined,
       })
 
@@ -765,7 +768,6 @@ export default function ServiceAccountDetail() {
                 includePeople
                 includeGroups
                 includeServiceAccounts
-                formatValue={(option) => (domainSuffix ? `${option.name}@${domainSuffix}` : option.name)}
                 onFocus={() => {
                   if (!canEdit && canEditEntryManagedBy) requestReauth()
                 }}
@@ -1243,7 +1245,7 @@ export default function ServiceAccountDetail() {
                   <span className="muted-text">{t('serviceAccounts.detail.directMembershipsNone')}</span>
                 ) : (
                   directGroups.map((group) => (
-                    <span className="badge" key={`direct-${group}`}>{group}</span>
+                    <span className="badge" key={`direct-${group}`}>{stripDomain(group)}</span>
                   ))
                 )}
               </div>
@@ -1255,7 +1257,7 @@ export default function ServiceAccountDetail() {
                   <span className="muted-text">{t('serviceAccounts.detail.inheritedMembershipsNone')}</span>
                 ) : (
                   inheritedGroups.map((group) => (
-                    <span className="badge" key={`inherited-${group}`}>{group}</span>
+                    <span className="badge" key={`inherited-${group}`}>{stripDomain(group)}</span>
                   ))
                 )}
               </div>

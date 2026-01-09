@@ -5,26 +5,8 @@ import { createServiceAccount } from '../api'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
-import { applyDomain } from '../utils/strings'
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function extractDomainSuffix(values: string[]) {
-  for (const entry of values) {
-    const parts = entry.split('@')
-    if (parts.length > 1 && parts[1]) {
-      return parts[1]
-    }
-  }
-  return null
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
+import { applyDomain, extractDomainSuffix } from '../utils/strings'
+import { isServiceAccountAdmin } from '../utils/groupAccess'
 
 export default function ServiceAccountCreate() {
   const navigate = useNavigate()
@@ -43,10 +25,7 @@ export default function ServiceAccountCreate() {
     }
   }, [entryManagedBy, user])
 
-  const canCreate = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_service_account_admins']),
-    [memberOf],
-  )
+  const canCreate = useMemo(() => isServiceAccountAdmin(memberOf), [memberOf])
   const domainSuffix = useMemo(
     () => extractDomainSuffix(memberOf),
     [memberOf],

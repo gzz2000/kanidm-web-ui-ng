@@ -21,6 +21,9 @@ import type { SshPublicKey } from '../api/ssh'
 import { useAuth } from '../auth/AuthContext'
 import { useAccess } from '../auth/AccessContext'
 import CredentialSections from '../components/CredentialSections'
+import { getPasskeySummary, getPasswordState, getTotpSummary } from '../utils/credentials'
+import { emailsEqual, normalizeEmails } from '../utils/email'
+import { parseKeyType } from '../utils/ssh'
 
 type CUStatus = components['schemas']['CUStatus']
 type CUSessionToken = components['schemas']['CUSessionToken']
@@ -32,51 +35,24 @@ type ProfileForm = {
   emails: string[]
 }
 
-function parseKeyType(value: string) {
-  return value.trim().split(/\s+/)[0] ?? ''
-}
-
-function normalizeEmails(emails: string[]) {
-  return emails.map((email) => email.trim()).filter(Boolean)
-}
-
-function emailsEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false
-  return left.every((email, index) => email === right[index])
-}
-
-function summarizePasskeys(labels: string[] | null | undefined, t: (key: string, args?: Record<string, unknown>) => string) {
-  if (!labels) return t('profile.summaryUnavailable')
-  if (labels.length === 0) return t('profile.summaryNotSet')
-  return t('profile.summarySetWithTags', { count: labels.length, tags: labels.join(', ') })
-}
-
-function summarizePassword(status: CredentialStatus | null, t: (key: string) => string) {
-  if (!status || !Array.isArray(status.creds)) return t('profile.summaryUnavailable')
-  const hasPassword = status.creds.some((cred) => {
-    if (cred.type_ === 'Password' || cred.type_ === 'GeneratedPassword') return true
-    return typeof cred.type_ === 'object' && cred.type_ && 'PasswordMfa' in cred.type_
-  })
-  return hasPassword ? t('profile.summarySet') : t('profile.summaryNotSet')
-}
-
-function summarizeTotp(status: CredentialStatus | null, t: (key: string, args?: Record<string, unknown>) => string) {
-  if (!status || !Array.isArray(status.creds)) return t('profile.summaryUnavailable')
-  let totpLabels: string[] = []
-  status.creds.forEach((cred) => {
-    if (typeof cred.type_ === 'object' && cred.type_ && 'PasswordMfa' in cred.type_) {
-      const detail = cred.type_.PasswordMfa
-      const labels = Array.isArray(detail) ? detail[0] : []
-      if (Array.isArray(labels)) {
-        totpLabels = labels
-      }
-    }
-  })
-  if (totpLabels.length === 0) return t('profile.summaryNotSet')
+function describeSummary(
+  summary: { state: 'unavailable' | 'notSet' | 'set'; labels: string[] },
+  t: (key: string, args?: Record<string, unknown>) => string,
+) {
+  if (summary.state === 'unavailable') return t('profile.summaryUnavailable')
+  if (summary.state === 'notSet') return t('profile.summaryNotSet')
   return t('profile.summarySetWithTags', {
-    count: totpLabels.length,
-    tags: totpLabels.join(', '),
+    count: summary.labels.length,
+    tags: summary.labels.join(', '),
   })
+}
+
+function describePasswordState(
+  state: 'unavailable' | 'notSet' | 'set',
+  t: (key: string) => string,
+) {
+  if (state === 'unavailable') return t('profile.summaryUnavailable')
+  return state === 'set' ? t('profile.summarySet') : t('profile.summaryNotSet')
 }
 
 export default function Profile() {
@@ -615,15 +591,15 @@ export default function Profile() {
             <div className="credential-summary">
               <div>
                 <span className="muted-text">{t('profile.summaryPasskeys')}</span>
-                <strong>{summarizePasskeys(passkeyLabels, t)}</strong>
+                <strong>{describeSummary(getPasskeySummary(passkeyLabels), t)}</strong>
               </div>
               <div>
                 <span className="muted-text">{t('profile.summaryPassword')}</span>
-                <strong>{summarizePassword(credSummary, t)}</strong>
+                <strong>{describePasswordState(getPasswordState(credSummary), t)}</strong>
               </div>
               <div>
                 <span className="muted-text">{t('profile.summaryTotp')}</span>
-                <strong>{summarizeTotp(credSummary, t)}</strong>
+                <strong>{describeSummary(getTotpSummary(credSummary), t)}</strong>
               </div>
             </div>
           )}

@@ -17,6 +17,13 @@ import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
 import { applyDomain, stripDomain } from '../utils/strings'
+import { emailsEqual, normalizeEmails } from '../utils/email'
+import { isNotFound } from '../utils/errors'
+import {
+  canManageGroupEntry,
+  isAccessControlAdmin,
+  isUnixAdmin,
+} from '../utils/groupAccess'
 
 type GroupForm = {
   name: string
@@ -30,30 +37,6 @@ type GroupMeta = {
   memberOf: string[]
   directMemberOf: string[]
   entryManagedBy: string[]
-}
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function normalizeEmails(emails: string[]) {
-  return emails.map((email) => email.trim()).filter(Boolean)
-}
-
-function emailsEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false
-  return left.every((email, index) => email === right[index])
-}
-
-function isNotFound(error: unknown) {
-  const message =
-    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
-  return message.includes('404') || message.includes('nomatchingentries')
 }
 
 export default function GroupDetail() {
@@ -79,33 +62,14 @@ export default function GroupDetail() {
   const [posixLoading, setPosixLoading] = useState(false)
   const [posixGid, setPosixGid] = useState('')
 
-  const isAccessControlAdmin = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_access_control_admins']),
-    [memberOf],
-  )
-  const canManagePosix = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_unix_admins']),
-    [memberOf],
-  )
+  const isAccessAdmin = useMemo(() => isAccessControlAdmin(memberOf), [memberOf])
+  const canManagePosix = useMemo(() => isUnixAdmin(memberOf), [memberOf])
 
-  const entryManagerMatch = useMemo(() => {
-    if (!groupMeta || !user) return false
-    const entryManagers = groupMeta.entryManagedBy.map((entry) => entry.toLowerCase())
-    if (entryManagers.includes(user.uuid.toLowerCase())) return true
-    if (entryManagers.includes(user.name.toLowerCase())) return true
-    if (entryManagers.some((entry) => normalizeGroupName(entry) === normalizeGroupName(user.name))) {
-      return true
-    }
-    const userGroups = new Set(memberOf.map(normalizeGroupName))
-    if (entryManagers.some((entry) => userGroups.has(normalizeGroupName(entry)))) return true
-    return false
-  }, [groupMeta, memberOf, user])
-
-  const canEditName = isAccessControlAdmin || entryManagerMatch
-  const canEditDescription = isAccessControlAdmin || entryManagerMatch
-  const canEditEntryManagedBy = isAccessControlAdmin
-  const canEditMail = isAccessControlAdmin || entryManagerMatch
-  const canManageMembers = isAccessControlAdmin || entryManagerMatch
+  const canEditName = canManageGroupEntry(groupMeta?.entryManagedBy ?? [], user, memberOf)
+  const canEditDescription = canManageGroupEntry(groupMeta?.entryManagedBy ?? [], user, memberOf)
+  const canEditEntryManagedBy = isAccessAdmin
+  const canEditMail = canManageGroupEntry(groupMeta?.entryManagedBy ?? [], user, memberOf)
+  const canManageMembers = canManageGroupEntry(groupMeta?.entryManagedBy ?? [], user, memberOf)
 
   const requestReauthIfNeeded = () => {
     if (

@@ -1,28 +1,95 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { createPerson } from '../api'
+import {
+  addGroupMembers,
+  createCredentialResetToken,
+  createPerson,
+  fetchGroups,
+  fetchPerson,
+  setPersonUnix,
+} from '../api'
+import type { GroupSummary } from '../api/groups'
 import { useAccess } from '../auth/AccessContext'
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
+import { useAuth } from '../auth/AuthContext'
+import { stripDomain } from '../utils/strings'
+import {
+  canManageGroupEntry,
+  hasAnyGroup,
+  isUnixAdmin,
+} from '../utils/groupAccess'
 
 export default function PersonCreate() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { canEdit, memberOf, requestReauth } = useAccess()
+  const { user } = useAuth()
   const [name, setName] = useState('')
   const [displayName, setDisplayName] = useState('')
+  const [groups, setGroups] = useState<GroupSummary[]>([])
+  const [groupMessage, setGroupMessage] = useState<string | null>(null)
+  const [groupsLoading, setGroupsLoading] = useState(false)
+  const [selectedGroups, setSelectedGroups] = useState<Set<string>>(new Set())
+  const [enablePosix, setEnablePosix] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [createdPersonId, setCreatedPersonId] = useState<string | null>(null)
+  const [createdPersonName, setCreatedPersonName] = useState<string | null>(null)
+  const [resetToken, setResetToken] = useState<{ token: string; expiry_time?: string } | null>(null)
+  const [resetMessage, setResetMessage] = useState<string | null>(null)
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetCopyTip, setResetCopyTip] = useState(false)
 
-  const canCreate = hasAnyGroup(memberOf, ['idm_people_admins'])
+  const canCreate = hasAnyGroup(memberOf, ['idm_people_admins', 'idm_people_on_boarding'])
+  const canResetToken = hasAnyGroup(memberOf, [
+    'idm_people_admins',
+    'idm_people_on_boarding',
+    'idm_service_desk',
+  ])
+  const canManagePosix = isUnixAdmin(memberOf)
+  const canManageGroup = useMemo(() => {
+    return (group: GroupSummary) => canManageGroupEntry(group.entryManagedBy, user, memberOf)
+  }, [memberOf, user])
+
+  useEffect(() => {
+    let active = true
+    setGroupsLoading(true)
+    setGroupMessage(null)
+    fetchGroups()
+      .then((entries) => {
+        if (!active) return
+        const manageable = entries.filter((group) => canManageGroup(group))
+        setGroups(manageable)
+      })
+      .catch((error) => {
+        if (!active) return
+        setGroupMessage(
+          error instanceof Error ? error.message : t('people.create.messages.groupLoadFailed'),
+        )
+      })
+      .finally(() => {
+        if (!active) return
+        setGroupsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [canManageGroup, t])
+
+  const handleGenerateResetToken = async (personId: string) => {
+    setResetLoading(true)
+    setResetMessage(null)
+    try {
+      const token = await createCredentialResetToken(personId)
+      setResetToken(token)
+    } catch (error) {
+      setResetMessage(
+        error instanceof Error ? error.message : t('people.create.messages.resetFailed'),
+      )
+    } finally {
+      setResetLoading(false)
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -44,7 +111,22 @@ export default function PersonCreate() {
         name: trimmedName,
         displayName: trimmedDisplay,
       })
-      navigate(`/people/${encodeURIComponent(trimmedName)}`)
+      const created = await fetchPerson(trimmedName)
+      const personId = created?.uuid ?? trimmedName
+      if (enablePosix && canManagePosix) {
+        await setPersonUnix(personId, {})
+      }
+      if (selectedGroups.size > 0) {
+        const memberRef = created?.uuid ?? trimmedName
+        await Promise.all(
+          Array.from(selectedGroups).map((groupId) => addGroupMembers(groupId, [memberRef])),
+        )
+      }
+      setCreatedPersonId(personId)
+      setCreatedPersonName(created?.displayName ?? trimmedDisplay)
+      if (canResetToken) {
+        await handleGenerateResetToken(personId)
+      }
     } catch (error) {
       setMessage(
         error instanceof Error ? error.message : t('people.create.messages.failed'),
@@ -73,45 +155,154 @@ export default function PersonCreate() {
         <p className="muted-text">{t('people.create.permissionDenied')}</p>
       )}
 
-      <div className="profile-card person-card">
-        <header>
-          <h2>{t('people.create.basicsTitle')}</h2>
-          <p>{t('people.create.basicsDesc')}</p>
-        </header>
-        <form onSubmit={handleSubmit} className="stacked-form">
-          <div className="field">
-            <label>{t('people.labels.username')}</label>
-            <input
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              disabled={!canCreate}
-              readOnly={canCreate && !canEdit}
-              onFocus={() => {
-                if (!canEdit && canCreate) requestReauth()
-              }}
-              placeholder={t('people.create.usernamePlaceholder')}
-            />
-          </div>
-          <div className="field">
-            <label>{t('people.labels.displayName')}</label>
-            <input
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              disabled={!canCreate}
-              readOnly={canCreate && !canEdit}
-              onFocus={() => {
-                if (!canEdit && canCreate) requestReauth()
-              }}
-              placeholder={t('people.create.displayNamePlaceholder')}
-            />
-          </div>
+      {createdPersonId ? (
+        <div className="profile-card person-card">
+          <header>
+            <h2>{t('people.create.successTitle')}</h2>
+            <p>{t('people.create.successSubtitle', { name: createdPersonName ?? name })}</p>
+          </header>
+          {canResetToken && (
+            <div className="stacked-form">
+              <p>{t('people.create.resetIntro')}</p>
+              {resetMessage && <p className="feedback">{resetMessage}</p>}
+              {resetToken ? (
+                <div className="reset-summary">
+                  <div className="copy-row">
+                    <code>{`${window.location.origin}/reset?token=${resetToken.token}`}</code>
+                    <button
+                      className="secondary-button"
+                      type="button"
+                      onClick={() => {
+                        void navigator.clipboard.writeText(
+                          `${window.location.origin}/reset?token=${resetToken.token}`,
+                        )
+                        setResetCopyTip(true)
+                        window.setTimeout(() => setResetCopyTip(false), 1600)
+                      }}
+                    >
+                      {t('people.create.resetCopy')}
+                    </button>
+                    {resetCopyTip && <span className="copy-tip">{t('people.create.resetCopied')}</span>}
+                  </div>
+                  <span className="muted-text">{t('people.create.resetExpires')}</span>
+                </div>
+              ) : (
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    void handleGenerateResetToken(createdPersonId)
+                  }}
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? t('people.create.resetCreating') : t('people.create.resetCreate')}
+                </button>
+              )}
+            </div>
+          )}
           <div className="profile-actions">
-            <button className="primary-button" type="submit" disabled={!canCreate || loading}>
-              {loading ? t('people.create.creating') : t('people.create.submit')}
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={() => {
+                setCreatedPersonId(null)
+                setCreatedPersonName(null)
+                setResetToken(null)
+                setResetMessage(null)
+                setName('')
+                setDisplayName('')
+                setSelectedGroups(new Set())
+                setEnablePosix(false)
+              }}
+            >
+              {t('people.create.createAnother')}
+            </button>
+            <button className="primary-button" type="button" onClick={() => navigate('/people')}>
+              {t('people.backToPeople')}
             </button>
           </div>
-        </form>
-      </div>
+        </div>
+      ) : (
+        <div className="profile-card person-card">
+          <header>
+            <h2>{t('people.create.basicsTitle')}</h2>
+            <p>{t('people.create.basicsDesc')}</p>
+          </header>
+          <form onSubmit={handleSubmit} className="stacked-form">
+            <div className="field">
+              <label>{t('people.labels.username')}</label>
+              <input
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                disabled={!canCreate}
+                readOnly={canCreate && !canEdit}
+                onFocus={() => {
+                  if (!canEdit && canCreate) requestReauth()
+                }}
+                placeholder={t('people.create.usernamePlaceholder')}
+              />
+            </div>
+            <div className="field">
+              <label>{t('people.labels.displayName')}</label>
+              <input
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                disabled={!canCreate}
+                readOnly={canCreate && !canEdit}
+                onFocus={() => {
+                  if (!canEdit && canCreate) requestReauth()
+                }}
+                placeholder={t('people.create.displayNamePlaceholder')}
+              />
+            </div>
+            {groupsLoading ? (
+              <p className="muted-text">{t('people.create.groupLoading')}</p>
+            ) : groups.length > 0 ? (
+              <div className="field">
+                <label>{t('people.create.groupLabel')}</label>
+                {groupMessage && <p className="feedback">{groupMessage}</p>}
+                <div className="stacked-form">
+                  {groups.map((group) => (
+                    <label className="checkbox" key={group.uuid}>
+                      <input
+                        type="checkbox"
+                        checked={selectedGroups.has(group.uuid)}
+                        onChange={(event) => {
+                          const next = new Set(selectedGroups)
+                          if (event.target.checked) {
+                            next.add(group.uuid)
+                          } else {
+                            next.delete(group.uuid)
+                          }
+                          setSelectedGroups(next)
+                        }}
+                        disabled={!canCreate}
+                      />
+                      <span>{stripDomain(group.displayName || group.name)}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {canManagePosix && (
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={enablePosix}
+                  onChange={(event) => setEnablePosix(event.target.checked)}
+                  disabled={!canCreate}
+                />
+                <span>{t('people.create.posixToggle')}</span>
+              </label>
+            )}
+            <div className="profile-actions">
+              <button className="primary-button" type="submit" disabled={!canCreate || loading}>
+                {loading ? t('people.create.creating') : t('people.create.submit')}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </section>
   )
 }

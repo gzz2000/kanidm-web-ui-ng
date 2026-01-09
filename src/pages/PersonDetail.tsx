@@ -14,6 +14,15 @@ import {
 } from '../api'
 import { useAccess } from '../auth/AccessContext'
 import { stripDomain } from '../utils/strings'
+import { getPasskeySummary, getPasswordState, getTotpSummary } from '../utils/credentials'
+import { formatExpiryTime, fromLocalDateTime, toLocalDateTime } from '../utils/dates'
+import { emailsEqual, normalizeEmails } from '../utils/email'
+import { isNotFound } from '../utils/errors'
+import {
+  hasAnyGroup,
+  isHighPrivilege,
+  isUnixAdmin,
+} from '../utils/groupAccess'
 
 type CredentialStatus = components['schemas']['CredentialStatus']
 type UnixUserToken = components['schemas']['UnixUserToken']
@@ -35,120 +44,24 @@ type PersonMeta = {
   attestedPasskeys: string[] | null
 }
 
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function summarizePasskeys(
-  labels: string[] | null | undefined,
+function describeSummary(
+  summary: { state: 'unavailable' | 'notSet' | 'set'; labels: string[] },
   t: (key: string, args?: Record<string, unknown>) => string,
 ) {
-  if (labels === null) return t('people.summaryUnavailable')
-  if (labels.length === 0) return t('people.summaryNotSet')
-  return t('people.summarySetWithTags', { count: labels.length, tags: labels.join(', ') })
+  if (summary.state === 'unavailable') return t('people.summaryUnavailable')
+  if (summary.state === 'notSet') return t('people.summaryNotSet')
+  return t('people.summarySetWithTags', {
+    count: summary.labels.length,
+    tags: summary.labels.join(', '),
+  })
 }
 
-function summarizePassword(
-  status: CredentialStatus | null,
+function describePasswordState(
+  state: 'unavailable' | 'notSet' | 'set',
   t: (key: string) => string,
 ) {
-  if (!status || !Array.isArray(status.creds)) return t('people.summaryUnavailable')
-  const hasPassword = status.creds.some((cred) => {
-    if (cred.type_ === 'Password' || cred.type_ === 'GeneratedPassword') return true
-    return typeof cred.type_ === 'object' && cred.type_ && 'PasswordMfa' in cred.type_
-  })
-  return hasPassword ? t('people.summarySet') : t('people.summaryNotSet')
-}
-
-function summarizeTotp(
-  status: CredentialStatus | null,
-  t: (key: string, args?: Record<string, unknown>) => string,
-) {
-  if (!status || !Array.isArray(status.creds)) return t('people.summaryUnavailable')
-  let totpLabels: string[] = []
-  status.creds.forEach((cred) => {
-    if (typeof cred.type_ === 'object' && cred.type_ && 'PasswordMfa' in cred.type_) {
-      const detail = cred.type_.PasswordMfa
-      const labels = Array.isArray(detail) ? detail[0] : []
-      if (Array.isArray(labels)) {
-        totpLabels = labels
-      }
-    }
-  })
-  if (totpLabels.length === 0) return t('people.summaryNotSet')
-  return t('people.summarySetWithTags', {
-    count: totpLabels.length,
-    tags: totpLabels.join(', '),
-  })
-}
-
-function normalizeEmails(emails: string[]) {
-  return emails.map((email) => email.trim()).filter(Boolean)
-}
-
-function emailsEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false
-  return left.every((email, index) => email === right[index])
-}
-
-function isNotFound(error: unknown) {
-  const message =
-    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
-  return message.includes('404') || message.includes('nomatchingentries')
-}
-
-function toLocalDateTime(value: string | null | undefined) {
-  if (!value) return ''
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  const pad = (input: number) => String(input).padStart(2, '0')
-  const year = parsed.getFullYear()
-  const month = pad(parsed.getMonth() + 1)
-  const day = pad(parsed.getDate())
-  const hours = pad(parsed.getHours())
-  const minutes = pad(parsed.getMinutes())
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function fromLocalDateTime(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(trimmed)
-  if (!match) return undefined
-  const [, year, month, day, hour, minute] = match
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-  )
-  if (Number.isNaN(date.getTime())) return undefined
-  return date.toISOString()
-}
-
-function formatExpiryTime(value: string | number) {
-  const raw = typeof value === 'number' ? String(value) : value
-  const trimmed = raw.trim()
-  if (!trimmed) return value
-  const numeric = Number(trimmed)
-  if (!Number.isNaN(numeric)) {
-    const millis = trimmed.length <= 10 ? numeric * 1000 : numeric
-    const date = new Date(millis)
-    if (!Number.isNaN(date.getTime())) {
-      return date.toLocaleString()
-    }
-  }
-  const parsed = new Date(trimmed)
-  if (!Number.isNaN(parsed.getTime())) {
-    return parsed.toLocaleString()
-  }
-  return raw
+  if (state === 'unavailable') return t('people.summaryUnavailable')
+  return state === 'set' ? t('people.summarySet') : t('people.summaryNotSet')
 }
 
 export default function PersonDetail() {
@@ -192,15 +105,13 @@ export default function PersonDetail() {
     [memberOf],
   )
   const canManagePosix = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_unix_admins']),
+    () => isUnixAdmin(memberOf),
     [memberOf],
   )
 
   const personHighPrivilege = useMemo(() => {
     if (!personMeta) return false
-    return personMeta.memberOf.some(
-      (group) => normalizeGroupName(group) === 'idm_high_privilege',
-    )
+    return isHighPrivilege(personMeta.memberOf)
   }, [personMeta])
 
   const allowResetToken = canResetToken && (isPeopleAdmin || !personHighPrivilege)
@@ -721,15 +632,15 @@ export default function PersonDetail() {
           <div className="credential-summary">
             <div>
               <strong>{t('people.labels.passkeys')}</strong>
-              <span>{summarizePasskeys(passkeys, t)}</span>
+              <span>{describeSummary(getPasskeySummary(passkeys), t)}</span>
             </div>
             <div>
               <strong>{t('people.labels.password')}</strong>
-              <span>{summarizePassword(credentialStatus, t)}</span>
+              <span>{describePasswordState(getPasswordState(credentialStatus), t)}</span>
             </div>
             <div>
               <strong>{t('people.labels.totp')}</strong>
-              <span>{summarizeTotp(credentialStatus, t)}</span>
+              <span>{describeSummary(getTotpSummary(credentialStatus), t)}</span>
             </div>
           </div>
           {!canResetToken && (

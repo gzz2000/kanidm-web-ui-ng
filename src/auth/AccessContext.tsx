@@ -6,6 +6,7 @@ import type { AuthAllowed, AuthResponse } from '../api/types'
 import type { components } from '../api/schema'
 import { useAuth } from './AuthContext'
 import { performPasskeyRequest } from './webauthn'
+import { hasAnyGroup } from '../utils/groupAccess'
 
 type UserAuthToken = components['schemas']['UserAuthToken']
 
@@ -28,15 +29,6 @@ const SELF_MAIL_WRITE_GROUPS = ['idm_people_self_mail_write']
 const SELF_WRITE_GROUPS = ['idm_all_persons']
 
 const AccessContext = createContext<AccessContextValue | undefined>(undefined)
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const groupSet = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => groupSet.has(normalizeGroupName(entry)))
-}
 
 function parseUatExpiry(expiry: UserAuthToken['expiry']): number | null {
   if (expiry === null || expiry === undefined) return null
@@ -105,6 +97,7 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!rwExpiry) return
+    setNow(Date.now())
     const timer = window.setInterval(() => setNow(Date.now()), 30_000)
     return () => window.clearInterval(timer)
   }, [rwExpiry])
@@ -113,6 +106,7 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     try {
       const nextToken = await fetchUserAuthToken()
       setUat(nextToken)
+      setNow(Date.now())
     } catch {
       setUat(null)
     }

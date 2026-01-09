@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { AccessProvider, useAccess } from '../auth/AccessContext'
+import { isHighPrivilege } from '../utils/groupAccess'
 
 function AppShellContent() {
   const { signOut, user } = useAuth()
@@ -16,14 +17,12 @@ function AppShellContent() {
     { to: '/profile', label: t('shell.navProfile') },
     { to: '/people', label: t('shell.navPeople') },
     { to: '/service-accounts', label: t('shell.navServiceAccounts') },
-    { to: '/groups', label: 'Groups' },
+    { to: '/groups', label: t('shell.navGroups') },
     { to: '/oauth2', label: 'OAuth2 Clients' },
     { to: '/system', label: 'System' },
   ]
 
-  const isHighPrivilege = memberOf.some(
-    (group) => group.split('@')[0]?.toLowerCase() === 'idm_high_privilege',
-  )
+  const highPrivilege = isHighPrivilege(memberOf)
 
   useEffect(() => {
     setMenuOpen(false)
@@ -78,7 +77,7 @@ function AppShellContent() {
                 <span>
                   {user ? `${user.displayName} (${user.name})` : t('shell.sameOrigin')}
                 </span>
-                {isHighPrivilege && (
+                {highPrivilege && (
                   <span className="badge badge-warn badge-sharp" title={t('shell.highPrivilegeTip')}>
                     {t('shell.highPrivilege')}
                   </span>

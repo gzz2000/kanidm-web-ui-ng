@@ -5,19 +5,11 @@ import { fetchGroups } from '../api'
 import type { GroupSummary } from '../api/groups'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function isHighPrivilege(memberOf: string[]) {
-  return memberOf.some((group) => normalizeGroupName(group) === 'idm_high_privilege')
-}
+import {
+  canManageGroupEntry,
+  isGroupAdmin,
+  isHighPrivilege,
+} from '../utils/groupAccess'
 
 export default function Groups() {
   const navigate = useNavigate()
@@ -31,28 +23,10 @@ export default function Groups() {
   const [groups, setGroups] = useState<GroupSummary[]>([])
   const pendingRef = useRef<Promise<GroupSummary[]> | null>(null)
 
-  const canCreate = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_group_admins']),
-    [memberOf],
-  )
-  const isAccessControlAdmin = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_access_control_admins']),
-    [memberOf],
-  )
+  const canCreate = useMemo(() => isGroupAdmin(memberOf), [memberOf])
   const canManageGroup = useMemo(() => {
-    if (!user) return () => false
-    const userGroups = new Set(memberOf.map(normalizeGroupName))
-    return (group: GroupSummary) => {
-      if (isAccessControlAdmin) return true
-      const entryManagers = group.entryManagedBy.map((entry) => entry.toLowerCase())
-      const entryManagerMatch =
-        entryManagers.includes(user.uuid.toLowerCase()) ||
-        entryManagers.includes(user.name.toLowerCase()) ||
-        entryManagers.some((entry) => normalizeGroupName(entry) === normalizeGroupName(user.name)) ||
-        entryManagers.some((entry) => userGroups.has(normalizeGroupName(entry)))
-      return entryManagerMatch
-    }
-  }, [isAccessControlAdmin, memberOf, user])
+    return (group: GroupSummary) => canManageGroupEntry(group.entryManagedBy, user, memberOf)
+  }, [memberOf, user])
 
   useEffect(() => {
     let active = true

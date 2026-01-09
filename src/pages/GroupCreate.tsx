@@ -5,26 +5,8 @@ import { createGroup } from '../api'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
-import { applyDomain } from '../utils/strings'
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function extractDomainSuffix(values: string[]) {
-  for (const entry of values) {
-    const parts = entry.split('@')
-    if (parts.length > 1 && parts[1]) {
-      return parts[1]
-    }
-  }
-  return null
-}
+import { applyDomain, extractDomainSuffix } from '../utils/strings'
+import { isAccessControlAdmin, isGroupAdmin } from '../utils/groupAccess'
 
 export default function GroupCreate() {
   const navigate = useNavigate()
@@ -42,14 +24,8 @@ export default function GroupCreate() {
     }
   }, [entryManagedBy, user])
 
-  const canCreate = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_group_admins']),
-    [memberOf],
-  )
-  const isAccessControlAdmin = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_access_control_admins']),
-    [memberOf],
-  )
+  const canCreate = useMemo(() => isGroupAdmin(memberOf), [memberOf])
+  const isAccessAdmin = useMemo(() => isAccessControlAdmin(memberOf), [memberOf])
   const domainSuffix = useMemo(
     () => extractDomainSuffix(memberOf),
     [memberOf],
@@ -135,7 +111,7 @@ export default function GroupCreate() {
               onFocus={requestReauthIfNeeded}
               onChange={setEntryManagedBy}
             />
-            {!isAccessControlAdmin && (
+            {!isAccessAdmin && (
               <p className="muted-text">{t('groups.create.entryManagerTip')}</p>
             )}
           </div>

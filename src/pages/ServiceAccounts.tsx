@@ -5,19 +5,11 @@ import { fetchServiceAccounts } from '../api'
 import type { ServiceAccountSummary } from '../api/serviceAccounts'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function isHighPrivilege(memberOf: string[]) {
-  return memberOf.some((group) => normalizeGroupName(group) === 'idm_high_privilege')
-}
+import {
+  canManageServiceAccountEntry,
+  isHighPrivilege,
+  isServiceAccountAdmin,
+} from '../utils/groupAccess'
 
 export default function ServiceAccounts() {
   const navigate = useNavigate()
@@ -31,24 +23,10 @@ export default function ServiceAccounts() {
   const [accounts, setAccounts] = useState<ServiceAccountSummary[]>([])
   const pendingRef = useRef<Promise<ServiceAccountSummary[]> | null>(null)
 
-  const canCreate = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_service_account_admins']),
-    [memberOf],
-  )
+  const canCreate = useMemo(() => isServiceAccountAdmin(memberOf), [memberOf])
   const canManageAccount = useMemo(() => {
-    if (!user) return () => false
-    const userGroups = new Set(memberOf.map(normalizeGroupName))
-    const isServiceAdmin = hasAnyGroup(memberOf, ['idm_service_account_admins'])
-    return (account: ServiceAccountSummary) => {
-      if (isServiceAdmin) return true
-      const entryManagers = account.entryManagedBy.map((entry) => entry.toLowerCase())
-      return (
-        entryManagers.includes(user.uuid.toLowerCase()) ||
-        entryManagers.includes(user.name.toLowerCase()) ||
-        entryManagers.some((entry) => normalizeGroupName(entry) === normalizeGroupName(user.name)) ||
-        entryManagers.some((entry) => userGroups.has(normalizeGroupName(entry)))
-      )
-    }
+    return (account: ServiceAccountSummary) =>
+      canManageServiceAccountEntry(account.entryManagedBy, user, memberOf)
   }, [memberOf, user])
 
   useEffect(() => {

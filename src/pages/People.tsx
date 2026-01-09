@@ -1,45 +1,44 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { fetchPeople } from '../api'
+import { fetchGroups, fetchPeople } from '../api'
 import type { PersonSummary } from '../api/people'
+import type { GroupSummary } from '../api/groups'
 import { useAccess } from '../auth/AccessContext'
-
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function isHighPrivilege(memberOf: string[]) {
-  return memberOf.some((group) => normalizeGroupName(group) === 'idm_high_privilege')
-}
+import { useAuth } from '../auth/AuthContext'
+import {
+  canManageGroupEntry,
+  isHighPrivilege,
+  isPeopleAdmin,
+  normalizeGroupName,
+  hasAnyGroup,
+} from '../utils/groupAccess'
 
 export default function People() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { memberOf } = useAccess()
+  const { user } = useAuth()
   const [query, setQuery] = useState('')
+  const [hideUnrelated, setHideUnrelated] = useState(true)
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [people, setPeople] = useState<PersonSummary[]>([])
   const pendingRef = useRef<Promise<PersonSummary[]> | null>(null)
+  const [groups, setGroups] = useState<GroupSummary[]>([])
 
   const canReadPii = useMemo(
-    () =>
-      hasAnyGroup(memberOf, [
-        'idm_people_admins',
-        'idm_people_pii_read',
-      ]),
+    () => hasAnyGroup(memberOf, ['idm_people_admins', 'idm_people_pii_read']),
     [memberOf],
   )
+  const isAdmin = useMemo(() => isPeopleAdmin(memberOf), [memberOf])
   const canCreate = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_people_admins']),
+    () => hasAnyGroup(memberOf, ['idm_people_admins', 'idm_people_on_boarding']),
     [memberOf],
   )
+  const canManageGroup = useMemo(() => {
+    return (group: GroupSummary) => canManageGroupEntry(group.entryManagedBy, user, memberOf)
+  }, [memberOf, user])
 
   useEffect(() => {
     let active = true
@@ -67,6 +66,27 @@ export default function People() {
     }
   }, [t])
 
+  useEffect(() => {
+    if (isAdmin) {
+      setHideUnrelated(false)
+      return
+    }
+    setHideUnrelated(true)
+    let active = true
+    fetchGroups()
+      .then((entries) => {
+        if (!active) return
+        setGroups(entries.filter((group) => canManageGroup(group)))
+      })
+      .catch(() => {
+        if (!active) return
+        setGroups([])
+      })
+    return () => {
+      active = false
+    }
+  }, [canManageGroup, isAdmin])
+
   const filteredPeople = useMemo(() => {
     const needle = query.trim().toLowerCase()
     if (!needle) return people
@@ -77,6 +97,15 @@ export default function People() {
       return false
     })
   }, [people, query])
+
+  const visiblePeople = useMemo(() => {
+    if (isAdmin || !hideUnrelated) return filteredPeople
+    const manageableGroups = new Set(groups.map((group) => normalizeGroupName(group.name)))
+    if (manageableGroups.size === 0) return []
+    return filteredPeople.filter((person) =>
+      person.memberOf.some((group) => manageableGroups.has(normalizeGroupName(group))),
+    )
+  }, [filteredPeople, groups, hideUnrelated, isAdmin])
 
   return (
     <section className="page people-page">
@@ -111,6 +140,16 @@ export default function People() {
             {t('people.limitedAccess')}
           </span>
         )}
+        {!isAdmin && (
+          <label className="checkbox">
+            <input
+              type="checkbox"
+              checked={hideUnrelated}
+              onChange={(event) => setHideUnrelated(event.target.checked)}
+            />
+            <span>{t('people.onlyMyGroups')}</span>
+          </label>
+        )}
       </div>
 
       {message && <p className="feedback">{message}</p>}
@@ -119,10 +158,10 @@ export default function People() {
         <p className="page-note">{t('people.loading')}</p>
       ) : (
         <div className="people-list">
-          {filteredPeople.length === 0 ? (
+          {visiblePeople.length === 0 ? (
             <p className="muted-text">{t('people.empty')}</p>
           ) : (
-            filteredPeople.map((person) => (
+            visiblePeople.map((person) => (
               <button
                 className="people-row"
                 key={person.uuid}

@@ -28,104 +28,29 @@ import type { components } from '../api/schema'
 import { useAccess } from '../auth/AccessContext'
 import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
-import { applyDomain, stripDomain } from '../utils/strings'
+import { getPasswordState } from '../utils/credentials'
+import { formatExpiryTime, fromLocalDateTime, toLocalDateTime } from '../utils/dates'
+import { emailsEqual, normalizeEmails } from '../utils/email'
+import { isNotFound } from '../utils/errors'
+import { parseKeyType } from '../utils/ssh'
+import { applyDomain, extractDomainSuffix, stripDomain } from '../utils/strings'
+import {
+  canManageServiceAccountEntry,
+  isAccessControlAdmin,
+  isHighPrivilege,
+  isServiceAccountAdmin,
+  isUnixAdmin,
+} from '../utils/groupAccess'
 
-function normalizeGroupName(group: string) {
-  return group.split('@')[0]?.toLowerCase() ?? ''
-}
-
-function hasAnyGroup(memberOf: string[], groups: string[]) {
-  const allowed = new Set(groups.map((group) => group.toLowerCase()))
-  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
-}
-
-function summarizePassword(status: CredentialStatus | null, fallback: string, setLabel: string, notSetLabel: string) {
-  if (!status || !Array.isArray(status.creds)) return fallback
-  const hasPassword = status.creds.some((cred) => {
-    if (cred.type_ === 'Password' || cred.type_ === 'GeneratedPassword') return true
-    return typeof cred.type_ === 'object' && cred.type_ && 'PasswordMfa' in cred.type_
-  })
-  return hasPassword ? setLabel : notSetLabel
-}
-
-
-function normalizeEmails(emails: string[]) {
-  return emails.map((email) => email.trim()).filter(Boolean)
-}
-
-function emailsEqual(left: string[], right: string[]) {
-  if (left.length !== right.length) return false
-  return left.every((email, index) => email === right[index])
-}
-
-function toLocalDateTime(value: string | null | undefined) {
-  if (!value) return ''
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return ''
-  const pad = (input: number) => String(input).padStart(2, '0')
-  const year = parsed.getFullYear()
-  const month = pad(parsed.getMonth() + 1)
-  const day = pad(parsed.getDate())
-  const hours = pad(parsed.getHours())
-  const minutes = pad(parsed.getMinutes())
-  return `${year}-${month}-${day}T${hours}:${minutes}`
-}
-
-function fromLocalDateTime(value: string) {
-  const trimmed = value.trim()
-  if (!trimmed) return null
-  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(trimmed)
-  if (!match) return undefined
-  const [, year, month, day, hour, minute] = match
-  const date = new Date(
-    Number(year),
-    Number(month) - 1,
-    Number(day),
-    Number(hour),
-    Number(minute),
-  )
-  if (Number.isNaN(date.getTime())) return undefined
-  return date.toISOString()
-}
-
-function formatExpiryTime(value: string | number | null | undefined, fallback: string) {
-  if (value === null || value === undefined || value === '') return fallback
-  if (typeof value === 'number') {
-    const date = new Date(value * 1000)
-    if (!Number.isNaN(date.getTime())) return date.toLocaleString()
-  }
-  if (typeof value === 'string') {
-    const trimmed = value.trim()
-    if (!trimmed) return fallback
-    const numeric = Number(trimmed)
-    if (!Number.isNaN(numeric)) {
-      const date = new Date(numeric * 1000)
-      if (!Number.isNaN(date.getTime())) return date.toLocaleString()
-    }
-    const parsed = new Date(trimmed)
-    if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleString()
-  }
-  return String(value)
-}
-
-function parseKeyType(value: string) {
-  return value.trim().split(/\s+/)[0] ?? ''
-}
-
-function extractDomainSuffix(values: string[]) {
-  for (const entry of values) {
-    const parts = entry.split('@')
-    if (parts.length > 1 && parts[1]) {
-      return parts[1]
-    }
-  }
-  return null
-}
-
-function isNotFound(error: unknown) {
-  const message =
-    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase()
-  return message.includes('404') || message.includes('nomatchingentries')
+function summarizePassword(
+  status: CredentialStatus | null,
+  fallback: string,
+  setLabel: string,
+  notSetLabel: string,
+) {
+  const state = getPasswordState(status)
+  if (state === 'unavailable') return fallback
+  return state === 'set' ? setLabel : notSetLabel
 }
 
 type ServiceAccountForm = {
@@ -188,24 +113,13 @@ export default function ServiceAccountDetail() {
   const [posixShell, setPosixShell] = useState('')
   const loadRef = useRef<string | null>(null)
 
-  const isServiceAdmin = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_service_account_admins']),
-    [memberOf],
-  )
-  const isAccessControlAdmin = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_access_control_admins']),
-    [memberOf],
-  )
-  const canManagePosix = useMemo(
-    () => hasAnyGroup(memberOf, ['idm_unix_admins']),
-    [memberOf],
-  )
+  const isServiceAdmin = useMemo(() => isServiceAccountAdmin(memberOf), [memberOf])
+  const isAccessAdmin = useMemo(() => isAccessControlAdmin(memberOf), [memberOf])
+  const canManagePosix = useMemo(() => isUnixAdmin(memberOf), [memberOf])
 
   const accountHighPrivilege = useMemo(() => {
     if (!accountMeta) return false
-    return accountMeta.memberOf.some(
-      (group) => normalizeGroupName(group) === 'idm_high_privilege',
-    )
+    return isHighPrivilege(accountMeta.memberOf)
   }, [accountMeta])
 
   const domainSuffix = useMemo(() => {
@@ -216,26 +130,20 @@ export default function ServiceAccountDetail() {
     return extractDomainSuffix(memberOf)
   }, [form?.entryManagedBy, memberOf])
 
-  const entryManagerMatch = useMemo(() => {
-    if (!accountMeta || !user) return false
-    const entryManagers = accountMeta.entryManagedBy.map((entry) => entry.toLowerCase())
-    if (entryManagers.includes(user.uuid.toLowerCase())) return true
-    if (entryManagers.includes(user.name.toLowerCase())) return true
-    if (entryManagers.some((entry) => normalizeGroupName(entry) === normalizeGroupName(user.name))) return true
-    const userGroups = new Set(memberOf.map(normalizeGroupName))
-    if (entryManagers.some((entry) => userGroups.has(normalizeGroupName(entry)))) return true
-    return false
-  }, [accountMeta, memberOf, user])
+  const canManageEntry = useMemo(
+    () => canManageServiceAccountEntry(accountMeta?.entryManagedBy ?? [], user, memberOf),
+    [accountMeta, memberOf, user],
+  )
 
   const canEditName = isServiceAdmin
-  const canEditDisplayName = isServiceAdmin || entryManagerMatch
+  const canEditDisplayName = canManageEntry
   const canEditDescription = isServiceAdmin
   const canEditEmail = isServiceAdmin
-  const canEditEntryManagedBy = isServiceAdmin && (!accountHighPrivilege || isAccessControlAdmin)
-  const canManageValidity = isServiceAdmin || entryManagerMatch
-  const canManageCredentials = isServiceAdmin || entryManagerMatch
-  const canManageApiTokens = isServiceAdmin || entryManagerMatch
-  const canManageSshKeys = isServiceAdmin || entryManagerMatch
+  const canEditEntryManagedBy = isServiceAdmin && (!accountHighPrivilege || isAccessAdmin)
+  const canManageValidity = canManageEntry
+  const canManageCredentials = canManageEntry
+  const canManageApiTokens = canManageEntry
+  const canManageSshKeys = canManageEntry
 
   const requestReauthIfNeeded = () => {
     if (!canEdit && (canEditDisplayName || canEditName || canEditEntryManagedBy)) {

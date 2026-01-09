@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { fetchPeople } from '../api'
@@ -26,6 +26,7 @@ export default function People() {
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
   const [people, setPeople] = useState<PersonSummary[]>([])
+  const pendingRef = useRef<Promise<PersonSummary[]> | null>(null)
 
   const canReadPii = useMemo(
     () =>
@@ -44,7 +45,10 @@ export default function People() {
     let active = true
     setLoading(true)
     setMessage(null)
-    fetchPeople()
+    if (!pendingRef.current) {
+      pendingRef.current = fetchPeople()
+    }
+    pendingRef.current
       .then((entries) => {
         if (!active) return
         setPeople(entries)
@@ -54,6 +58,7 @@ export default function People() {
         setMessage(error instanceof Error ? error.message : t('people.messages.listFailed'))
       })
       .finally(() => {
+        pendingRef.current = null
         if (!active) return
         setLoading(false)
       })

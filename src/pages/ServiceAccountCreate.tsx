@@ -1,0 +1,175 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { createServiceAccount } from '../api'
+import { useAccess } from '../auth/AccessContext'
+import { useAuth } from '../auth/AuthContext'
+import AccountGroupSelect from '../components/AccountGroupSelect'
+
+function normalizeGroupName(group: string) {
+  return group.split('@')[0]?.toLowerCase() ?? ''
+}
+
+function extractDomainSuffix(values: string[]) {
+  for (const entry of values) {
+    const parts = entry.split('@')
+    if (parts.length > 1 && parts[1]) {
+      return parts[1]
+    }
+  }
+  return null
+}
+
+function hasAnyGroup(memberOf: string[], groups: string[]) {
+  const allowed = new Set(groups.map((group) => group.toLowerCase()))
+  return memberOf.some((entry) => allowed.has(normalizeGroupName(entry)))
+}
+
+export default function ServiceAccountCreate() {
+  const navigate = useNavigate()
+  const { t } = useTranslation()
+  const { canEdit, memberOf, requestReauth } = useAccess()
+  const { user } = useAuth()
+  const [name, setName] = useState('')
+  const [displayName, setDisplayName] = useState('')
+  const [description, setDescription] = useState('')
+  const [entryManagedBy, setEntryManagedBy] = useState(user?.name ?? '')
+  const [message, setMessage] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  useEffect(() => {
+    if (user && !entryManagedBy) {
+      setEntryManagedBy(user.name)
+    }
+  }, [entryManagedBy, user])
+
+  const canCreate = useMemo(
+    () => hasAnyGroup(memberOf, ['idm_service_account_admins']),
+    [memberOf],
+  )
+  const domainSuffix = useMemo(
+    () => extractDomainSuffix(memberOf),
+    [memberOf],
+  )
+
+  const requestReauthIfNeeded = () => {
+    if (!canEdit && canCreate) {
+      requestReauth()
+    }
+  }
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!canCreate) return
+    if (!canEdit) {
+      requestReauth()
+      return
+    }
+    const trimmedName = name.trim()
+    const trimmedDisplay = displayName.trim()
+    if (!trimmedName || !trimmedDisplay) {
+      setMessage(t('serviceAccounts.create.messages.required'))
+      return
+    }
+    if (!entryManagedBy) {
+      setMessage(t('serviceAccounts.create.messages.entryManagerRequired'))
+      return
+    }
+    setLoading(true)
+    setMessage(null)
+    try {
+      await createServiceAccount({
+        name: trimmedName,
+        displayName: trimmedDisplay,
+        entryManagedBy,
+        description: description.trim() || undefined,
+      })
+      navigate(`/service-accounts/${encodeURIComponent(trimmedName)}`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : t('serviceAccounts.create.messages.failed'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <section className="page service-account-page">
+      <div className="service-account-header">
+        <div>
+          <h1>{t('serviceAccounts.create.title')}</h1>
+          <p className="page-note">{t('serviceAccounts.create.subtitle')}</p>
+        </div>
+        <div className="service-account-actions">
+          <button className="secondary-button" type="button" onClick={() => navigate('/service-accounts')}>
+            {t('serviceAccounts.backToList')}
+          </button>
+        </div>
+      </div>
+
+      {message && <p className="feedback">{message}</p>}
+      {!canCreate && (
+        <p className="muted-text">{t('serviceAccounts.create.permissionDenied')}</p>
+      )}
+
+      <div className="profile-card service-account-card">
+        <header>
+          <h2>{t('serviceAccounts.create.basicsTitle')}</h2>
+          <p>{t('serviceAccounts.create.basicsDesc')}</p>
+        </header>
+        <form onSubmit={handleSubmit} className="stacked-form">
+          <div className="field">
+            <label>{t('serviceAccounts.create.accountName')}</label>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              disabled={!canCreate}
+              readOnly={canCreate && !canEdit}
+              onFocus={requestReauthIfNeeded}
+              placeholder={t('serviceAccounts.create.namePlaceholder')}
+            />
+          </div>
+          <div className="field">
+            <label>{t('serviceAccounts.create.displayName')}</label>
+            <input
+              value={displayName}
+              onChange={(event) => setDisplayName(event.target.value)}
+              disabled={!canCreate}
+              readOnly={canCreate && !canEdit}
+              onFocus={requestReauthIfNeeded}
+              placeholder={t('serviceAccounts.create.displayNamePlaceholder')}
+            />
+          </div>
+          <div className="field">
+            <label>{t('serviceAccounts.create.entryManagedBy')}</label>
+            <AccountGroupSelect
+              value={entryManagedBy}
+              disabled={!canCreate}
+              readOnly={canCreate && !canEdit}
+              includePeople
+              includeGroups
+              includeServiceAccounts
+              formatValue={(option) => (domainSuffix ? `${option.name}@${domainSuffix}` : option.name)}
+              onFocus={requestReauthIfNeeded}
+              onChange={setEntryManagedBy}
+            />
+          </div>
+          <div className="field">
+            <label>{t('serviceAccounts.create.description')}</label>
+            <textarea
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              disabled={!canCreate}
+              readOnly={canCreate && !canEdit}
+              onFocus={requestReauthIfNeeded}
+              placeholder={t('serviceAccounts.create.descriptionPlaceholder')}
+            />
+          </div>
+          <div className="profile-actions">
+            <button className="primary-button" type="submit" disabled={!canCreate || loading}>
+              {loading ? t('serviceAccounts.create.creating') : t('serviceAccounts.create.submit')}
+            </button>
+          </div>
+        </form>
+      </div>
+    </section>
+  )
+}

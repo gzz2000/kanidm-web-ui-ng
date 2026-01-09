@@ -4,24 +4,23 @@ import { useEffect, useState } from 'react'
 import { useAuth } from '../auth/AuthContext'
 import { AccessProvider, useAccess } from '../auth/AccessContext'
 
-const navItems = [
-  { to: '/', label: 'Overview' },
-  { to: '/people', label: 'People' },
-  { to: '/groups', label: 'Groups' },
-  { to: '/service-accounts', label: 'Service Accounts' },
-  { to: '/oauth2', label: 'OAuth2 Clients' },
-  { to: '/ssh-keys', label: 'SSH Keys' },
-  { to: '/apps', label: 'Apps' },
-  { to: '/profile', label: 'My Profile' },
-  { to: '/system', label: 'System' },
-]
-
 function AppShellContent() {
   const { signOut, user } = useAuth()
   const { unlockedMinutes, memberOf } = useAccess()
   const { t } = useTranslation()
   const location = useLocation()
   const [menuOpen, setMenuOpen] = useState(false)
+
+  const navItems = [
+    { to: '/', label: 'Apps' },
+    { to: '/profile', label: t('shell.navProfile') },
+    { to: '/ssh-keys', label: t('shell.navSshKeys') },
+    { to: '/people', label: t('shell.navPeople') },
+    { to: '/service-accounts', label: t('shell.navServiceAccounts') },
+    { to: '/groups', label: 'Groups' },
+    { to: '/oauth2', label: 'OAuth2 Clients' },
+    { to: '/system', label: 'System' },
+  ]
 
   const isHighPrivilege = memberOf.some(
     (group) => group.split('@')[0]?.toLowerCase() === 'idm_high_privilege',

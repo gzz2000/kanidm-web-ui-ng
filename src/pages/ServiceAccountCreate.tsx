@@ -133,9 +133,9 @@ export default function ServiceAccountCreate() {
           </div>
           <div className="field">
             <label>{t('serviceAccounts.create.description')}</label>
-            <textarea
+            <input
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) => setDescription(event.target.value.replace(/[\r\n]+/g, ' '))}
               disabled={!canCreate}
               readOnly={canCreate && !canEdit}
               onFocus={requestReauthIfNeeded}

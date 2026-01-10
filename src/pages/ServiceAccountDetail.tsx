@@ -658,9 +658,14 @@ export default function ServiceAccountDetail() {
             </div>
             <div className="field">
               <label>{t('serviceAccounts.detail.description')}</label>
-              <textarea
+              <input
                 value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    description: event.target.value.replace(/[\r\n]+/g, ' '),
+                  })
+                }
                 disabled={!canEditDescription}
                 readOnly={canEditDescription && !canEdit}
                 onFocus={requestReauthIfNeeded}
@@ -685,11 +690,13 @@ export default function ServiceAccountDetail() {
                 <p className="muted-text">{t('serviceAccounts.detail.entryManagerHighPriv')}</p>
               )}
             </div>
-            <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canEditName && !canEditDisplayName && !canEditDescription && !canEditEntryManagedBy}>
-                {t('serviceAccounts.detail.saveIdentity')}
-              </button>
-            </div>
+            {(canEditName || canEditDisplayName || canEditDescription || canEditEntryManagedBy) && (
+              <div className="profile-actions">
+                <button className="primary-button" type="submit">
+                  {t('serviceAccounts.detail.saveIdentity')}
+                </button>
+              </div>
+            )}
           </form>
         </section>
 
@@ -711,48 +718,47 @@ export default function ServiceAccountDetail() {
               </div>
             </div>
           )}
-          <form className="stacked-form" onSubmit={handleApiTokenSubmit}>
-            <div className="field">
-              <label>{t('serviceAccounts.detail.apiTokenLabel')}</label>
-              <input
-                value={apiTokenLabel}
-                onChange={(event) => setApiTokenLabel(event.target.value)}
-                disabled={!canManageApiTokens}
-                readOnly={canManageApiTokens && !canEdit}
-                onFocus={() => {
-                  if (!canEdit && canManageApiTokens) requestReauth()
-                }}
-                placeholder={t('serviceAccounts.detail.apiTokenLabelPlaceholder')}
-              />
-            </div>
-            <div className="field">
-              <label>{t('serviceAccounts.detail.apiTokenExpiry')}</label>
-              <input
-                type="datetime-local"
-                value={apiTokenExpiry}
-                onChange={(event) => setApiTokenExpiry(event.target.value)}
-                disabled={!canManageApiTokens}
-                readOnly={canManageApiTokens && !canEdit}
-                onFocus={() => {
-                  if (!canEdit && canManageApiTokens) requestReauth()
-                }}
-              />
-            </div>
-            <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={apiTokenReadWrite}
-                onChange={(event) => setApiTokenReadWrite(event.target.checked)}
-                disabled={!canManageApiTokens}
-              />
-              {t('serviceAccounts.detail.apiTokenReadWrite')}
-            </label>
-            <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canManageApiTokens || apiTokenLoading}>
-                {apiTokenLoading ? t('serviceAccounts.detail.apiTokenGenerating') : t('serviceAccounts.detail.apiTokenGenerate')}
-              </button>
-            </div>
-          </form>
+          {canManageApiTokens && (
+            <form className="stacked-form" onSubmit={handleApiTokenSubmit}>
+              <div className="field">
+                <label>{t('serviceAccounts.detail.apiTokenLabel')}</label>
+                <input
+                  value={apiTokenLabel}
+                  onChange={(event) => setApiTokenLabel(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => {
+                    if (!canEdit) requestReauth()
+                  }}
+                  placeholder={t('serviceAccounts.detail.apiTokenLabelPlaceholder')}
+                />
+              </div>
+              <div className="field">
+                <label>{t('serviceAccounts.detail.apiTokenExpiry')}</label>
+                <input
+                  type="datetime-local"
+                  value={apiTokenExpiry}
+                  onChange={(event) => setApiTokenExpiry(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => {
+                    if (!canEdit) requestReauth()
+                  }}
+                />
+              </div>
+              <label className="checkbox">
+                <input
+                  type="checkbox"
+                  checked={apiTokenReadWrite}
+                  onChange={(event) => setApiTokenReadWrite(event.target.checked)}
+                />
+                {t('serviceAccounts.detail.apiTokenReadWrite')}
+              </label>
+              <div className="profile-actions">
+                <button className="primary-button" type="submit" disabled={apiTokenLoading}>
+                  {apiTokenLoading ? t('serviceAccounts.detail.apiTokenGenerating') : t('serviceAccounts.detail.apiTokenGenerate')}
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="token-list">
             {apiTokens.length === 0 ? (
@@ -768,35 +774,36 @@ export default function ServiceAccountDetail() {
                       <span>{token.purpose ?? 'readonly'}</span>
                     </div>
                   </div>
-                  {apiTokenConfirm === token.token_id ? (
-                    <div className="ssh-confirm">
-                      <span className="muted-text">{t('serviceAccounts.detail.apiTokenConfirm', { label: token.label })}</span>
+                  {canManageApiTokens && (
+                    apiTokenConfirm === token.token_id ? (
+                      <div className="ssh-confirm">
+                        <span className="muted-text">{t('serviceAccounts.detail.apiTokenConfirm', { label: token.label })}</span>
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          onClick={() => void handleApiTokenDelete(token.token_id)}
+                          disabled={apiTokenDeleting === token.token_id}
+                        >
+                          {t('serviceAccounts.detail.apiTokenRemove')}
+                        </button>
+                        <button
+                          className="ghost-button"
+                          type="button"
+                          onClick={() => setApiTokenConfirm(null)}
+                          disabled={apiTokenDeleting === token.token_id}
+                        >
+                          {t('serviceAccounts.detail.apiTokenCancel')}
+                        </button>
+                      </div>
+                    ) : (
                       <button
                         className="secondary-button"
                         type="button"
-                        onClick={() => void handleApiTokenDelete(token.token_id)}
-                        disabled={apiTokenDeleting === token.token_id}
+                        onClick={() => setApiTokenConfirm(token.token_id)}
                       >
                         {t('serviceAccounts.detail.apiTokenRemove')}
                       </button>
-                      <button
-                        className="ghost-button"
-                        type="button"
-                        onClick={() => setApiTokenConfirm(null)}
-                        disabled={apiTokenDeleting === token.token_id}
-                      >
-                        {t('serviceAccounts.detail.apiTokenCancel')}
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      className="secondary-button"
-                      type="button"
-                      onClick={() => setApiTokenConfirm(token.token_id)}
-                      disabled={!canManageApiTokens}
-                    >
-                      {t('serviceAccounts.detail.apiTokenRemove')}
-                    </button>
+                    )
                   )}
                 </div>
               ))
@@ -837,9 +844,11 @@ export default function ServiceAccountDetail() {
               />
             </div>
             <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canManageValidity}>
-                {t('serviceAccounts.detail.saveValidity')}
-              </button>
+              {canManageValidity && (
+                <button className="primary-button" type="submit">
+                  {t('serviceAccounts.detail.saveValidity')}
+                </button>
+              )}
             </div>
           </form>
         </section>
@@ -866,14 +875,15 @@ export default function ServiceAccountDetail() {
                 </div>
               </div>
               <div className="profile-actions">
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={handlePasswordGenerate}
-                  disabled={!canManageCredentials}
-                >
-                  {t('serviceAccounts.detail.generatePassword')}
-                </button>
+                {canManageCredentials && (
+                  <button
+                    className="primary-button"
+                    type="button"
+                    onClick={handlePasswordGenerate}
+                  >
+                    {t('serviceAccounts.detail.generatePassword')}
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -910,39 +920,39 @@ export default function ServiceAccountDetail() {
           ) : (
             <p className="muted-text">{t('serviceAccounts.detail.posixDisabled')}</p>
           )}
-          <form className="stacked-form" onSubmit={handlePosixSubmit}>
-            <div className="field">
-              <label>{t('serviceAccounts.detail.gidNumber')}</label>
-              <input
-                value={posixGid}
-                onChange={(event) => setPosixGid(event.target.value)}
-                disabled={!canManagePosix}
-                readOnly={canManagePosix && !canEdit}
-                onFocus={() => {
-                  if (!canEdit && canManagePosix) requestReauth()
-                }}
-                placeholder={t('serviceAccounts.detail.gidPlaceholder')}
-              />
-            </div>
-            <div className="field">
-              <label>{t('serviceAccounts.detail.loginShell')}</label>
-              <input
-                value={posixShell}
-                onChange={(event) => setPosixShell(event.target.value)}
-                disabled={!canManagePosix}
-                readOnly={canManagePosix && !canEdit}
-                onFocus={() => {
-                  if (!canEdit && canManagePosix) requestReauth()
-                }}
-                placeholder={t('serviceAccounts.detail.shellPlaceholder')}
-              />
-            </div>
-            <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canManagePosix || posixLoading}>
-                {posixLoading ? t('serviceAccounts.detail.posixSaving') : t('serviceAccounts.detail.posixSave')}
-              </button>
-            </div>
-          </form>
+          {canManagePosix && (
+            <form className="stacked-form" onSubmit={handlePosixSubmit}>
+              <div className="field">
+                <label>{t('serviceAccounts.detail.gidNumber')}</label>
+                <input
+                  value={posixGid}
+                  onChange={(event) => setPosixGid(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => {
+                    if (!canEdit) requestReauth()
+                  }}
+                  placeholder={t('serviceAccounts.detail.gidPlaceholder')}
+                />
+              </div>
+              <div className="field">
+                <label>{t('serviceAccounts.detail.loginShell')}</label>
+                <input
+                  value={posixShell}
+                  onChange={(event) => setPosixShell(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => {
+                    if (!canEdit) requestReauth()
+                  }}
+                  placeholder={t('serviceAccounts.detail.shellPlaceholder')}
+                />
+              </div>
+              <div className="profile-actions">
+                <button className="primary-button" type="submit" disabled={posixLoading}>
+                  {posixLoading ? t('serviceAccounts.detail.posixSaving') : t('serviceAccounts.detail.posixSave')}
+                </button>
+              </div>
+            </form>
+          )}
         </section>
 
         <section className="profile-card service-account-card">
@@ -951,7 +961,7 @@ export default function ServiceAccountDetail() {
             <p>{t('profile.ssh.subtitle')}</p>
           </header>
           {sshMessage && <p className="feedback">{sshMessage}</p>}
-          {sshKeys.length === 0 ? (
+          {canManageSshKeys && sshKeys.length === 0 ? (
             <form className="stacked-form" onSubmit={handleSshSubmit}>
               <div className="field">
                 <label>{t('profile.ssh.labelLabel')}</label>
@@ -989,7 +999,7 @@ export default function ServiceAccountDetail() {
                 </button>
               </div>
             </form>
-          ) : (
+          ) : canManageSshKeys ? (
             <details className="ssh-add-toggle">
               <summary>{t('profile.ssh.addTitle')}</summary>
               <form className="stacked-form" onSubmit={handleSshSubmit}>
@@ -1023,14 +1033,14 @@ export default function ServiceAccountDetail() {
                   <button
                     className="primary-button"
                     type="submit"
-                    disabled={!canManageSshKeys || sshLoading}
+                    disabled={sshLoading}
                   >
                     {sshLoading ? t('profile.ssh.adding') : t('profile.ssh.add')}
                   </button>
                 </div>
               </form>
             </details>
-          )}
+          ) : null}
 
           <div className="ssh-list">
             {sshKeys.length === 0 ? (
@@ -1043,37 +1053,38 @@ export default function ServiceAccountDetail() {
                       <strong>{key.tag}</strong>
                       <span className="ssh-key-type">{parseKeyType(key.value)}</span>
                     </div>
-                    {sshConfirm === key.tag ? (
-                      <div className="ssh-confirm">
-                        <span className="muted-text">
-                          {t('profile.ssh.removeConfirm', { label: key.tag })}
-                        </span>
+                    {canManageSshKeys && (
+                      sshConfirm === key.tag ? (
+                        <div className="ssh-confirm">
+                          <span className="muted-text">
+                            {t('profile.ssh.removeConfirm', { label: key.tag })}
+                          </span>
+                          <button
+                            className="secondary-button"
+                            type="button"
+                            onClick={() => void handleSshDelete(key.tag)}
+                            disabled={sshDeleting === key.tag}
+                          >
+                            {t('profile.ssh.remove')}
+                          </button>
+                          <button
+                            className="ghost-button"
+                            type="button"
+                            onClick={() => setSshConfirm(null)}
+                            disabled={sshDeleting === key.tag}
+                          >
+                            {t('profile.ssh.cancel')}
+                          </button>
+                        </div>
+                      ) : (
                         <button
                           className="secondary-button"
                           type="button"
-                          onClick={() => void handleSshDelete(key.tag)}
-                          disabled={sshDeleting === key.tag}
+                          onClick={() => setSshConfirm(key.tag)}
                         >
                           {t('profile.ssh.remove')}
                         </button>
-                        <button
-                          className="ghost-button"
-                          type="button"
-                          onClick={() => setSshConfirm(null)}
-                          disabled={sshDeleting === key.tag}
-                        >
-                          {t('profile.ssh.cancel')}
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="secondary-button"
-                        type="button"
-                        onClick={() => setSshConfirm(key.tag)}
-                        disabled={!canManageSshKeys}
-                      >
-                        {t('profile.ssh.remove')}
-                      </button>
+                      )
                     )}
                   </div>
                   <code className="ssh-key-value">{key.value}</code>
@@ -1092,14 +1103,15 @@ export default function ServiceAccountDetail() {
           <div className="profile-emails">
             <div className="profile-emails-header">
               <span>{t('serviceAccounts.detail.emailLabel')}</span>
-              <button
-                className="ghost-button"
-                type="button"
-                onClick={() => setForm({ ...form, emails: [...form.emails, ''] })}
-                disabled={!canEditEmail}
-              >
-                {t('serviceAccounts.detail.emailAdd')}
-              </button>
+              {canEditEmail && (
+                <button
+                  className="ghost-button"
+                  type="button"
+                  onClick={() => setForm({ ...form, emails: [...form.emails, ''] })}
+                >
+                  {t('serviceAccounts.detail.emailAdd')}
+                </button>
+              )}
             </div>
             {form.emails.length === 0 ? (
               <p className="muted-text">{t('serviceAccounts.detail.emailNone')}</p>
@@ -1125,7 +1137,6 @@ export default function ServiceAccountDetail() {
                       const next = form.emails.filter((_, i) => i !== index)
                       setForm({ ...form, emails: next })
                     }}
-                    disabled={!canEditEmail}
                   >
                     {t('serviceAccounts.detail.emailRemove')}
                   </button>
@@ -1133,11 +1144,13 @@ export default function ServiceAccountDetail() {
               ))
             )}
           </div>
-          <div className="profile-actions">
-            <button className="primary-button" type="button" onClick={handleEmailSave} disabled={!canEditEmail}>
-              {t('serviceAccounts.detail.emailSave')}
-            </button>
-          </div>
+          {canEditEmail && (
+            <div className="profile-actions">
+              <button className="primary-button" type="button" onClick={handleEmailSave}>
+                {t('serviceAccounts.detail.emailSave')}
+              </button>
+            </div>
+          )}
         </section>
 
         <section className="profile-card service-account-card">

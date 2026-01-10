@@ -422,9 +422,14 @@ export default function GroupDetail() {
             </div>
             <div className="field">
               <label>{t('groups.detail.description')}</label>
-              <textarea
+              <input
                 value={form.description}
-                onChange={(event) => setForm({ ...form, description: event.target.value })}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    description: event.target.value.replace(/[\r\n]+/g, ' '),
+                  })
+                }
                 disabled={!canEditDescription}
                 readOnly={canEditDescription && !canEdit}
                 onFocus={requestReauthIfNeeded}
@@ -451,15 +456,16 @@ export default function GroupDetail() {
                 <p className="muted-text">{t('groups.detail.entryManagerLocked')}</p>
               )}
             </div>
-            <div className="profile-actions">
-              <button
-                className="primary-button"
-                type="submit"
-                disabled={!canEditName && !canEditDescription && !canEditEntryManagedBy}
-              >
-                {t('groups.detail.saveIdentity')}
-              </button>
-            </div>
+            {(canEditName || canEditDescription || canEditEntryManagedBy) && (
+              <div className="profile-actions">
+                <button
+                  className="primary-button"
+                  type="submit"
+                >
+                  {t('groups.detail.saveIdentity')}
+                </button>
+              </div>
+            )}
           </form>
         </section>
 
@@ -487,9 +493,11 @@ export default function GroupDetail() {
               />
             </div>
             <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canManageMembers || memberAdding}>
-                {memberAdding ? t('groups.detail.memberAdding') : t('groups.detail.memberAdd')}
-              </button>
+              {canManageMembers && (
+                <button className="primary-button" type="submit" disabled={memberAdding}>
+                  {memberAdding ? t('groups.detail.memberAdding') : t('groups.detail.memberAdd')}
+                </button>
+              )}
             </div>
           </form>
           {membersLoading ? (
@@ -559,14 +567,15 @@ export default function GroupDetail() {
             <div className="profile-emails">
               <div className="profile-emails-header">
                 <span>{t('groups.detail.mailTitle')}</span>
-                <button
-                  className="link-button"
-                  type="button"
-                  onClick={() => setForm({ ...form, emails: [...form.emails, ''] })}
-                  disabled={!canEditMail}
-                >
-                  {t('groups.detail.mailAdd')}
-                </button>
+                {canEditMail && (
+                  <button
+                    className="link-button"
+                    type="button"
+                    onClick={() => setForm({ ...form, emails: [...form.emails, ''] })}
+                  >
+                    {t('groups.detail.mailAdd')}
+                  </button>
+                )}
               </div>
               {form.emails.length === 0 ? (
                 <p className="muted-text">{t('groups.detail.mailEmpty')}</p>
@@ -585,26 +594,29 @@ export default function GroupDetail() {
                       onFocus={requestReauthIfNeeded}
                       placeholder={t('groups.detail.mailPlaceholder')}
                     />
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      onClick={() => {
-                        const nextEmails = form.emails.filter((_, idx) => idx !== index)
-                        setForm({ ...form, emails: nextEmails })
-                      }}
-                      disabled={!canEditMail}
-                    >
-                      {t('groups.detail.mailRemove')}
-                    </button>
+                    {canEditMail && (
+                      <button
+                        className="ghost-button"
+                        type="button"
+                        onClick={() => {
+                          const nextEmails = form.emails.filter((_, idx) => idx !== index)
+                          setForm({ ...form, emails: nextEmails })
+                        }}
+                      >
+                        {t('groups.detail.mailRemove')}
+                      </button>
+                    )}
                   </div>
                 ))
               )}
             </div>
-            <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canEditMail}>
-                {t('groups.detail.mailSave')}
-              </button>
-            </div>
+            {canEditMail && (
+              <div className="profile-actions">
+                <button className="primary-button" type="submit">
+                  {t('groups.detail.mailSave')}
+                </button>
+              </div>
+            )}
           </form>
         </section>
 
@@ -617,35 +629,34 @@ export default function GroupDetail() {
             <p className="muted-text">{t('groups.detail.posixNoPermission')}</p>
           )}
           {posixMessage && <p className="feedback">{posixMessage}</p>}
-          <div className="credential-summary">
-            {posixToken ? (
-              <span>
-                {t('groups.detail.posixEnabled', {
-                  gid: posixToken.gidnumber,
-                })}
-              </span>
-            ) : (
-              <span>{t('groups.detail.posixDisabled')}</span>
-            )}
-          </div>
-          <form className="stacked-form" onSubmit={handlePosixSubmit}>
-            <div className="field">
-              <label>{t('groups.detail.gidNumber')}</label>
-              <input
-                value={posixGid}
-                onChange={(event) => setPosixGid(event.target.value)}
-                disabled={!canManagePosix}
-                readOnly={canManagePosix && !canEdit}
-                onFocus={requestReauthIfNeeded}
-                placeholder={t('groups.detail.gidPlaceholder')}
-              />
-            </div>
-            <div className="profile-actions">
-              <button className="primary-button" type="submit" disabled={!canManagePosix || posixLoading}>
-                {posixLoading ? t('groups.detail.posixSaving') : t('groups.detail.posixSave')}
-              </button>
-            </div>
-          </form>
+          {posixToken ? (
+            <p className="muted-text">
+              {t('groups.detail.posixEnabled', {
+                gid: posixToken.gidnumber,
+              })}
+            </p>
+          ) : (
+            <p className="muted-text">{t('groups.detail.posixDisabled')}</p>
+          )}
+          {canManagePosix && (
+            <form className="stacked-form" onSubmit={handlePosixSubmit}>
+              <div className="field">
+                <label>{t('groups.detail.gidNumber')}</label>
+                <input
+                  value={posixGid}
+                  onChange={(event) => setPosixGid(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={requestReauthIfNeeded}
+                  placeholder={t('groups.detail.gidPlaceholder')}
+                />
+              </div>
+              <div className="profile-actions">
+                <button className="primary-button" type="submit" disabled={posixLoading}>
+                  {posixLoading ? t('groups.detail.posixSaving') : t('groups.detail.posixSave')}
+                </button>
+              </div>
+            </form>
+          )}
         </section>
 
         <section className="profile-card">

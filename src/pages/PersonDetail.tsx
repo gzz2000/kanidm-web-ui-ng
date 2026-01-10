@@ -499,29 +499,30 @@ export default function PersonDetail() {
             />
           </div>
           <div className="field">
-            <label>{t('people.labels.legalName')}</label>
-            {canReadPii ? (
-              <input
-                value={form.legalName}
-                onChange={(event) => handleIdentityChange('legalName', event.target.value)}
-                disabled={!isPeopleAdmin}
-                readOnly={isPeopleAdmin && !canEdit}
-                onFocus={() => requestReauthIfNeeded(isPeopleAdmin)}
-              />
-            ) : (
-              <input value={t('people.detail.hiddenPii')} disabled />
+            {canReadPii && (
+              <>
+                <label>{t('people.labels.legalName')}</label>
+                <input
+                  value={form.legalName}
+                  onChange={(event) => handleIdentityChange('legalName', event.target.value)}
+                  disabled={!isPeopleAdmin}
+                  readOnly={isPeopleAdmin && !canEdit}
+                  onFocus={() => requestReauthIfNeeded(isPeopleAdmin)}
+                />
+              </>
             )}
           </div>
-          <div className="profile-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={handleIdentitySave}
-              disabled={!isPeopleAdmin}
-            >
-              {t('people.detail.saveIdentity')}
-            </button>
-          </div>
+          {isPeopleAdmin && (
+            <div className="profile-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleIdentitySave}
+              >
+                {t('people.detail.saveIdentity')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="profile-card person-card">
@@ -537,14 +538,15 @@ export default function PersonDetail() {
                     ? t('people.detail.emailEmpty')
                     : t('people.detail.emailList')}
                 </span>
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={handleEmailAdd}
-                  disabled={!isPeopleAdmin}
-                >
-                  {t('people.actions.add')}
-                </button>
+                {isPeopleAdmin && (
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleEmailAdd}
+                  >
+                    {t('people.actions.add')}
+                  </button>
+                )}
               </div>
               {form.emails.map((email, index) => (
                 <div className="profile-email-row" key={`email-${index}`}>
@@ -570,16 +572,17 @@ export default function PersonDetail() {
           ) : (
             <p className="muted-text">{t('people.detail.piiHidden')}</p>
           )}
-          <div className="profile-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={handleEmailSave}
-              disabled={!isPeopleAdmin || !canReadPii}
-            >
-              {t('people.detail.saveEmail')}
-            </button>
-          </div>
+          {isPeopleAdmin && canReadPii && (
+            <div className="profile-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleEmailSave}
+              >
+                {t('people.detail.saveEmail')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="profile-card person-card">
@@ -611,16 +614,17 @@ export default function PersonDetail() {
               onFocus={() => requestReauthIfNeeded(isPeopleAdmin)}
             />
           </div>
-          <div className="profile-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={handleValiditySave}
-              disabled={!isPeopleAdmin}
-            >
-              {t('people.detail.saveValidity')}
-            </button>
-          </div>
+          {isPeopleAdmin && (
+            <div className="profile-actions">
+              <button
+                className="primary-button"
+                type="button"
+                onClick={handleValiditySave}
+              >
+                {t('people.detail.saveValidity')}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="profile-card person-card">
@@ -649,29 +653,32 @@ export default function PersonDetail() {
             </p>
           )}
 
-          <div className="field">
-            <label>{t('people.labels.resetTtl')}</label>
-            <input
-              value={resetTtl}
-              onChange={(event) => setResetTtl(event.target.value)}
-              disabled={!allowResetToken}
-              readOnly={allowResetToken && !canEdit}
-              onFocus={() => requestReauthIfNeeded(allowResetToken)}
-            />
-            <span className="muted-text">
-              {t('people.detail.resetTtlHelp')}
-            </span>
-          </div>
-          <div className="profile-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={handleResetToken}
-              disabled={!allowResetToken || resetLoading}
-            >
-              {resetLoading ? t('people.detail.resetCreating') : t('people.detail.resetCreate')}
-            </button>
-          </div>
+          {allowResetToken && (
+            <>
+              <div className="field">
+                <label>{t('people.labels.resetTtl')}</label>
+                <input
+                  value={resetTtl}
+                  onChange={(event) => setResetTtl(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => requestReauthIfNeeded(allowResetToken)}
+                />
+                <span className="muted-text">
+                  {t('people.detail.resetTtlHelp')}
+                </span>
+              </div>
+              <div className="profile-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={handleResetToken}
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? t('people.detail.resetCreating') : t('people.detail.resetCreate')}
+                </button>
+              </div>
+            </>
+          )}
           {resetMessage && <p className="feedback">{resetMessage}</p>}
           {!allowResetToken && canResetToken && personHighPrivilege && !isPeopleAdmin && (
             <p className="muted-text">
@@ -728,38 +735,40 @@ export default function PersonDetail() {
           ) : (
             <p className="muted-text">{t('people.detail.posixDisabled')}</p>
           )}
-          <div className="field">
-            <label>{t('people.labels.gidNumber')}</label>
-            <input
-              value={posixGid}
-              placeholder={t('people.detail.posixGidPlaceholder')}
-              onChange={(event) => setPosixGid(event.target.value)}
-              disabled={!canManagePosix}
-              readOnly={canManagePosix && !canEdit}
-              onFocus={() => requestReauthIfNeeded(canManagePosix)}
-            />
-          </div>
-          <div className="field">
-            <label>{t('people.labels.loginShell')}</label>
-            <input
-              value={posixShell}
-              placeholder={t('people.detail.posixShellPlaceholder')}
-              onChange={(event) => setPosixShell(event.target.value)}
-              disabled={!canManagePosix}
-              readOnly={canManagePosix && !canEdit}
-              onFocus={() => requestReauthIfNeeded(canManagePosix)}
-            />
-          </div>
-          <div className="profile-actions">
-            <button
-              className="primary-button"
-              type="button"
-              onClick={handlePosixSave}
-              disabled={!canManagePosix || posixLoading}
-            >
-              {posixLoading ? t('people.detail.posixSaving') : t('people.detail.posixSave')}
-            </button>
-          </div>
+          {canManagePosix && (
+            <>
+              <div className="field">
+                <label>{t('people.labels.gidNumber')}</label>
+                <input
+                  value={posixGid}
+                  placeholder={t('people.detail.posixGidPlaceholder')}
+                  onChange={(event) => setPosixGid(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => requestReauthIfNeeded(canManagePosix)}
+                />
+              </div>
+              <div className="field">
+                <label>{t('people.labels.loginShell')}</label>
+                <input
+                  value={posixShell}
+                  placeholder={t('people.detail.posixShellPlaceholder')}
+                  onChange={(event) => setPosixShell(event.target.value)}
+                  readOnly={!canEdit}
+                  onFocus={() => requestReauthIfNeeded(canManagePosix)}
+                />
+              </div>
+              <div className="profile-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={handlePosixSave}
+                  disabled={posixLoading}
+                >
+                  {posixLoading ? t('people.detail.posixSaving') : t('people.detail.posixSave')}
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="profile-card person-card">

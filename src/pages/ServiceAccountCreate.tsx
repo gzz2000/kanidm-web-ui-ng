@@ -63,7 +63,7 @@ export default function ServiceAccountCreate() {
         entryManagedBy: applyDomain(entryManagedBy.trim(), domainSuffix),
         description: description.trim() || undefined,
       })
-      navigate(`/service-accounts/${encodeURIComponent(trimmedName)}`)
+      navigate(`/admin/service-accounts/${encodeURIComponent(trimmedName)}`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t('serviceAccounts.create.messages.failed'))
     } finally {
@@ -79,7 +79,7 @@ export default function ServiceAccountCreate() {
           <p className="page-note">{t('serviceAccounts.create.subtitle')}</p>
         </div>
         <div className="service-account-actions">
-          <button className="secondary-button" type="button" onClick={() => navigate('/service-accounts')}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/admin/service-accounts')}>
             {t('serviceAccounts.backToList')}
           </button>
         </div>

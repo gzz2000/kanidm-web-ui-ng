@@ -241,7 +241,7 @@ export default function ServiceAccountDetail() {
         const isBuiltin = account.name === 'admin' || account.name === 'idm_admin'
         setFormState(account)
         if (id !== account.uuid) {
-          navigate(`/service-accounts/${account.uuid}`, { replace: true })
+          navigate(`/admin/service-accounts/${account.uuid}`, { replace: true })
         }
         if (isBuiltin) {
           setCredentialStatus(null)
@@ -624,7 +624,7 @@ export default function ServiceAccountDetail() {
               {t('shell.highPrivilege')}
             </span>
           )}
-          <button className="secondary-button" type="button" onClick={() => navigate('/service-accounts')}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/admin/service-accounts')}>
             {t('serviceAccounts.backToList')}
           </button>
         </div>

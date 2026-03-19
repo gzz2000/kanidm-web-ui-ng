@@ -15,10 +15,10 @@ function AppShellContent() {
   const navItems = [
     { to: '/', label: 'Apps' },
     { to: '/profile', label: t('shell.navProfile') },
-    { to: '/people', label: t('shell.navPeople') },
-    { to: '/service-accounts', label: t('shell.navServiceAccounts') },
-    { to: '/groups', label: t('shell.navGroups') },
-    { to: '/oauth2', label: 'OAuth2 Clients' },
+    { to: '/admin/people', label: t('shell.navPeople') },
+    { to: '/admin/service-accounts', label: t('shell.navServiceAccounts') },
+    { to: '/admin/groups', label: t('shell.navGroups') },
+    { to: '/admin/oauth2', label: t('shell.navOauth2') },
     { to: '/system', label: 'System' },
   ]
 

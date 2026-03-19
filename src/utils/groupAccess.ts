@@ -40,6 +40,10 @@ export function isGroupAdmin(memberOf: string[]) {
   return hasAnyGroup(memberOf, ['idm_group_admins'])
 }
 
+export function isOauth2Admin(memberOf: string[]) {
+  return hasAnyGroup(memberOf, ['idm_oauth2_admins'])
+}
+
 export function isUnixAdmin(memberOf: string[]) {
   return hasAnyGroup(memberOf, ['idm_unix_admins'])
 }

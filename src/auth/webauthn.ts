@@ -18,6 +18,11 @@ function base64UrlToBuffer(value: string): ArrayBuffer {
   return bytes.buffer
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object') return null
+  return value as Record<string, unknown>
+}
+
 function convertRequestOptions(options: Record<string, unknown>): PublicKeyCredentialRequestOptions {
   const container =
     options && typeof options === 'object' && 'publicKey' in options
@@ -31,14 +36,15 @@ function convertRequestOptions(options: Record<string, unknown>): PublicKeyCrede
 
   if (Array.isArray(publicKey.allowCredentials)) {
     publicKey.allowCredentials = publicKey.allowCredentials.map((cred) => {
-      if (cred && typeof cred === 'object' && typeof cred.id === 'string') {
-        return { ...cred, id: base64UrlToBuffer(cred.id) }
+      const record = asRecord(cred)
+      if (record && typeof record.id === 'string') {
+        return { ...record, id: base64UrlToBuffer(record.id) }
       }
       return cred
     })
   }
 
-  return publicKey as PublicKeyCredentialRequestOptions
+  return publicKey as unknown as PublicKeyCredentialRequestOptions
 }
 
 function convertCreationOptions(options: Record<string, unknown>): PublicKeyCredentialCreationOptions {
@@ -52,23 +58,25 @@ function convertCreationOptions(options: Record<string, unknown>): PublicKeyCred
     publicKey.challenge = base64UrlToBuffer(publicKey.challenge)
   }
 
-  if (publicKey.user && typeof publicKey.user === 'object' && typeof publicKey.user.id === 'string') {
+  const user = asRecord(publicKey.user)
+  if (user && typeof user.id === 'string') {
     publicKey.user = {
-      ...publicKey.user,
-      id: base64UrlToBuffer(publicKey.user.id),
+      ...user,
+      id: base64UrlToBuffer(user.id),
     }
   }
 
   if (Array.isArray(publicKey.excludeCredentials)) {
     publicKey.excludeCredentials = publicKey.excludeCredentials.map((cred) => {
-      if (cred && typeof cred === 'object' && typeof cred.id === 'string') {
-        return { ...cred, id: base64UrlToBuffer(cred.id) }
+      const record = asRecord(cred)
+      if (record && typeof record.id === 'string') {
+        return { ...record, id: base64UrlToBuffer(record.id) }
       }
       return cred
     })
   }
 
-  return publicKey as PublicKeyCredentialCreationOptions
+  return publicKey as unknown as PublicKeyCredentialCreationOptions
 }
 
 function serializeAssertion(credential: PublicKeyCredential) {

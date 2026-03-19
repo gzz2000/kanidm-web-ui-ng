@@ -56,7 +56,7 @@ export default function GroupCreate() {
         name: trimmedName,
         entryManagedBy: applyDomain(entryManagedBy.trim(), domainSuffix) || undefined,
       })
-      navigate(`/groups/${encodeURIComponent(trimmedName)}`)
+      navigate(`/admin/groups/${encodeURIComponent(trimmedName)}`)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : t('groups.create.messages.failed'))
     } finally {
@@ -72,7 +72,7 @@ export default function GroupCreate() {
           <p className="page-note">{t('groups.create.subtitle')}</p>
         </div>
         <div className="groups-actions">
-          <button className="secondary-button" type="button" onClick={() => navigate('/groups')}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/admin/groups')}>
             {t('groups.backToList')}
           </button>
         </div>

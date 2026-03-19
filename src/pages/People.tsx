@@ -119,7 +119,7 @@ export default function People() {
             <button
               className="primary-button"
               type="button"
-              onClick={() => navigate('/people/new')}
+              onClick={() => navigate('/admin/people/new')}
             >
               {t('people.createCta')}
             </button>
@@ -166,7 +166,7 @@ export default function People() {
                 className="people-row"
                 key={person.uuid}
                 type="button"
-                onClick={() => navigate(`/people/${person.uuid}`)}
+                onClick={() => navigate(`/admin/people/${person.uuid}`)}
               >
                 <div>
                   <div className="people-name">

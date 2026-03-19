@@ -80,7 +80,7 @@ export default function ServiceAccounts() {
             <button
               className="primary-button"
               type="button"
-              onClick={() => navigate('/service-accounts/new')}
+              onClick={() => navigate('/admin/service-accounts/new')}
             >
               {t('serviceAccounts.createCta')}
             </button>
@@ -122,7 +122,7 @@ export default function ServiceAccounts() {
                 className="service-accounts-row"
                 key={account.uuid}
                 type="button"
-                onClick={() => navigate(`/service-accounts/${account.uuid}`)}
+                onClick={() => navigate(`/admin/service-accounts/${account.uuid}`)}
               >
                 <div>
                   <div className="service-accounts-name">

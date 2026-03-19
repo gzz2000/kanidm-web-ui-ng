@@ -138,7 +138,7 @@ export default function PersonDetail() {
   useEffect(() => {
     let active = true
     if (!id) {
-      navigate('/people', { replace: true })
+      navigate('/admin/people', { replace: true })
       return
     }
 
@@ -156,7 +156,7 @@ export default function PersonDetail() {
           return
         }
         if (person.uuid && person.uuid !== id) {
-          navigate(`/people/${person.uuid}`, { replace: true })
+          navigate(`/admin/people/${person.uuid}`, { replace: true })
         }
         setPersonMeta({
           uuid: person.uuid,
@@ -414,15 +414,15 @@ export default function PersonDetail() {
     setPosixMessage(null)
     try {
       const gidValue = posixGid.trim()
-      const gidnumber = gidValue ? Number(gidValue) : undefined
-      if (gidValue && (!Number.isFinite(gidnumber) || gidnumber <= 0)) {
+      const parsedGid = gidValue ? Number(gidValue) : null
+      if (gidValue && (parsedGid === null || !Number.isFinite(parsedGid) || parsedGid <= 0)) {
         setPosixMessage(t('people.messages.posixGidInvalid'))
         setPosixLoading(false)
         return
       }
       const shell = posixShell.trim() || undefined
       await setPersonUnix(id, {
-        gidnumber: gidnumber ? Math.trunc(gidnumber) : undefined,
+        gidnumber: parsedGid ? Math.trunc(parsedGid) : undefined,
         shell,
       })
       const token = await fetchUnixToken(id)
@@ -449,7 +449,7 @@ export default function PersonDetail() {
     return (
       <section className="page person-page">
         <p className="page-note">{message ?? t('people.detail.notFound')}</p>
-        <button className="secondary-button" type="button" onClick={() => navigate('/people')}>
+        <button className="secondary-button" type="button" onClick={() => navigate('/admin/people')}>
           {t('people.backToPeople')}
         </button>
       </section>
@@ -479,7 +479,7 @@ export default function PersonDetail() {
           )}
         </div>
         <div className="person-actions">
-          <button className="secondary-button" type="button" onClick={() => navigate('/people')}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/admin/people')}>
             {t('people.backToPeople')}
           </button>
         </div>

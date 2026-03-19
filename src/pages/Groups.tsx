@@ -80,7 +80,7 @@ export default function Groups() {
             <button
               className="primary-button"
               type="button"
-              onClick={() => navigate('/groups/new')}
+              onClick={() => navigate('/admin/groups/new')}
             >
               {t('groups.createCta')}
             </button>
@@ -122,7 +122,7 @@ export default function Groups() {
                 className="groups-row"
                 key={group.uuid}
                 type="button"
-                onClick={() => navigate(`/groups/${group.uuid}`)}
+                onClick={() => navigate(`/admin/groups/${group.uuid}`)}
               >
                 <div>
                   <div className="groups-name">

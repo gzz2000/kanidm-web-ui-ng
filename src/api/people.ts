@@ -81,19 +81,25 @@ function parsePersonDetail(entry: Entry): PersonDetail {
 }
 
 export async function fetchPeople(): Promise<PersonSummary[]> {
-  const entries = await apiRequest('/v1/person', 'get')
-  return (entries as PersonListResponse).map(parsePerson)
+  const entries = await apiRequest<PersonListResponse>('/v1/person', 'get')
+  return Array.isArray(entries) ? entries.map(parsePerson) : []
 }
 
 export async function searchPeople(query: string): Promise<PersonSummary[]> {
-  const entries = await apiRequest(`/v1/person/_search/${encodeURIComponent(query)}`, 'get')
-  return (entries as PersonListResponse).map(parsePerson)
+  const entries = await apiRequest<PersonListResponse>(
+    `/v1/person/_search/${encodeURIComponent(query)}`,
+    'get',
+  )
+  return Array.isArray(entries) ? entries.map(parsePerson) : []
 }
 
 export async function fetchPerson(id: string): Promise<PersonDetail | null> {
-  const entry = await apiRequest(`/v1/person/${encodeURIComponent(id)}`, 'get')
+  const entry = await apiRequest<PersonDetailResponse | null>(
+    `/v1/person/${encodeURIComponent(id)}`,
+    'get',
+  )
   if (!entry) return null
-  return parsePersonDetail(entry as PersonDetailResponse)
+  return parsePersonDetail(entry)
 }
 
 export async function createPerson(input: { name: string; displayName: string }) {

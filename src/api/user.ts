@@ -1,9 +1,9 @@
 import { apiRequest } from './client'
-import type { components, paths } from './schema'
+import type { components } from './schema'
 
-type WhoamiResponse = paths['/v1/whoami']['get']['responses'][200]['content']['application/json']
-
-type Entry = WhoamiResponse['youare']
+type Entry = {
+  attrs?: Record<string, string[]>
+}
 
 type UserProfile = {
   name: string
@@ -33,7 +33,7 @@ function listAttr(entry: Entry, key: string) {
 }
 
 export async function fetchWhoami(): Promise<UserProfile> {
-  const response = await apiRequest('/v1/self', 'get')
+  const response = await apiRequest<{ youare: Entry }>('/v1/self', 'get')
   const entry = response.youare
   const name = firstAttr(entry, 'name') || firstAttr(entry, 'spn')
   const displayName = firstAttr(entry, 'displayname') || name
@@ -44,7 +44,7 @@ export async function fetchWhoami(): Promise<UserProfile> {
 }
 
 export async function fetchSelfProfile(): Promise<SelfProfile> {
-  const response = await apiRequest('/v1/self', 'get')
+  const response = await apiRequest<{ youare: Entry }>('/v1/self', 'get')
   const entry = response.youare
   const name = firstAttr(entry, 'name') || firstAttr(entry, 'spn')
   const displayName = firstAttr(entry, 'displayname') || name
@@ -60,7 +60,7 @@ export async function fetchSelfProfile(): Promise<SelfProfile> {
 }
 
 export async function fetchUserAuthToken(): Promise<UserAuthToken> {
-  return apiRequest('/v1/self/_uat', 'get')
+  return apiRequest<UserAuthToken>('/v1/self/_uat', 'get')
 }
 
 export async function updatePersonProfile(input: {

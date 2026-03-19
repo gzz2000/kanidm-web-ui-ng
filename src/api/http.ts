@@ -1,4 +1,4 @@
-const baseUrl = import.meta.env.VITE_KANIDM_BASE_URL ?? ''
+export const baseUrl = import.meta.env.VITE_KANIDM_BASE_URL ?? ''
 const TOKEN_KEY = 'kanidm.uat'
 
 export const tokenStore = {

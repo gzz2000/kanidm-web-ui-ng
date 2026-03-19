@@ -134,7 +134,7 @@ export default function GroupDetail() {
 
   useEffect(() => {
     if (!id) {
-      navigate('/groups', { replace: true })
+      navigate('/admin/groups', { replace: true })
       return
     }
 
@@ -153,7 +153,7 @@ export default function GroupDetail() {
         }
         setFormState(group)
         if (group.uuid && group.uuid !== id) {
-          navigate(`/groups/${group.uuid}`, { replace: true })
+          navigate(`/admin/groups/${group.uuid}`, { replace: true })
         }
         await Promise.all([loadMembers(group.uuid), loadPosix(group.uuid)])
       } catch (error) {
@@ -394,7 +394,7 @@ export default function GroupDetail() {
           <p className="page-note">{t('groups.detail.subtitle')}</p>
         </div>
         <div className="groups-actions">
-          <button className="secondary-button" type="button" onClick={() => navigate('/groups')}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/admin/groups')}>
             {t('groups.backToList')}
           </button>
         </div>

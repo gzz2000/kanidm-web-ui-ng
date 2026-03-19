@@ -283,10 +283,22 @@
   gap: 16px;
 }
 
+.oauth2-page {
+  display: grid;
+  gap: 16px;
+}
+
 .service-accounts-header {
   display: flex;
   justify-content: space-between;
   gap: 12px;
+}
+
+.oauth2-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
 }
 
 .service-accounts-actions {
@@ -294,7 +306,21 @@
   align-items: flex-start;
 }
 
+.oauth2-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
 .service-accounts-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.oauth2-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -312,7 +338,22 @@
   color: var(--text);
 }
 
+.oauth2-search {
+  min-width: 240px;
+  flex: 1;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text);
+}
+
 .service-accounts-list {
+  display: grid;
+  gap: 10px;
+}
+
+.oauth2-list {
   display: grid;
   gap: 10px;
 }
@@ -335,9 +376,132 @@
   font: inherit;
 }
 
+.oauth2-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 1fr);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 160ms ease, transform 160ms ease;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
 .service-accounts-row:hover {
   border-color: rgba(29, 181, 155, 0.45);
   transform: translateY(-1px);
+}
+
+.oauth2-row:hover {
+  border-color: rgba(29, 181, 155, 0.45);
+  transform: translateY(-1px);
+}
+
+.oauth2-page .oauth2-row,
+.oauth2-page .token-row,
+.oauth2-page .oauth2-claim-entry {
+  flex-wrap: wrap;
+}
+
+.oauth2-page .oauth2-row > div,
+.oauth2-page .token-row > div,
+.oauth2-page .oauth2-claim-entry > div {
+  min-width: 0;
+}
+
+.oauth2-page .token-row,
+.oauth2-page .oauth2-row,
+.oauth2-page .oauth2-claim-entry {
+  word-break: break-word;
+}
+
+.oauth2-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  text-align: right;
+}
+
+.oauth2-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.oauth2-type {
+  margin-top: 6px;
+  display: inline-flex;
+}
+
+.oauth2-image {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 80px;
+  background: var(--panel);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 12px;
+}
+
+.oauth2-image img {
+  max-height: 160px;
+  max-width: 100%;
+  border-radius: 10px;
+}
+
+.oauth2-image .profile-actions {
+  width: 100%;
+  justify-content: center;
+}
+
+.oauth2-claim-block {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.oauth2-claim-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.oauth2-claim-list {
+  display: grid;
+  gap: 10px;
+}
+
+.oauth2-claim-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.oauth2-page input[type='file'] {
+  width: 100%;
+}
+
+.danger-card {
+  border-color: rgba(255, 122, 122, 0.4);
 }
 
 .person-page {
@@ -787,6 +951,12 @@
   border: 1px solid rgba(255, 167, 92, 0.45);
 }
 
+.badge-neutral {
+  background: rgba(92, 104, 116, 0.2);
+  color: var(--text);
+  border: 1px solid rgba(92, 104, 116, 0.4);
+}
+
 .profile-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -958,6 +1128,19 @@
 }
 
 .checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.radio-group {
+  display: grid;
+  gap: 8px;
+}
+
+.radio {
   display: flex;
   align-items: center;
   gap: 8px;

@@ -12,10 +12,10 @@ import { performPasskeyRequest } from '../auth/webauthn'
 import { useAuth } from '../auth/AuthContext'
 import type { AuthAllowed, AuthMech, AuthResponse } from '../api/types'
 
-function findAllowed<T extends AuthAllowed>(
+function findAllowed(
   allowed: AuthAllowed[],
-  key: keyof T,
-): T | undefined {
+  key: string,
+): AuthAllowed | undefined {
   return allowed.find((entry) => {
     if (typeof entry === 'string') {
       return entry === key
@@ -24,7 +24,7 @@ function findAllowed<T extends AuthAllowed>(
       return key in entry
     }
     return false
-  }) as T | undefined
+  })
 }
 
 function authSucceeded(response: AuthResponse) {
@@ -147,7 +147,7 @@ export default function Login() {
         return
       }
       const passkey = findAllowed(begin.state.continue, 'passkey')
-      if (!passkey) {
+      if (!passkey || typeof passkey === 'string' || !('passkey' in passkey)) {
         throw new Error('Passkey challenge missing from server response')
       }
       const credential = await performPasskeyRequest(

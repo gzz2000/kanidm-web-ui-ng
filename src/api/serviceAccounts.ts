@@ -63,14 +63,17 @@ function parseServiceAccountDetail(entry: Entry): ServiceAccountDetail {
 }
 
 export async function fetchServiceAccounts(): Promise<ServiceAccountSummary[]> {
-  const entries = await apiRequest('/v1/service_account', 'get')
-  return (entries as ServiceAccountListResponse).map(parseServiceAccount)
+  const entries = await apiRequest<ServiceAccountListResponse>('/v1/service_account', 'get')
+  return Array.isArray(entries) ? entries.map(parseServiceAccount) : []
 }
 
 export async function fetchServiceAccount(id: string): Promise<ServiceAccountDetail | null> {
-  const entry = await apiRequest(`/v1/service_account/${encodeURIComponent(id)}`, 'get')
+  const entry = await apiRequest<ServiceAccountDetailResponse | null>(
+    `/v1/service_account/${encodeURIComponent(id)}`,
+    'get',
+  )
   if (!entry) return null
-  return parseServiceAccountDetail(entry as ServiceAccountDetailResponse)
+  return parseServiceAccountDetail(entry)
 }
 
 export async function createServiceAccount(input: {
@@ -166,16 +169,16 @@ export async function generateServiceAccountPassword(id: string): Promise<string
 }
 
 export async function fetchServiceAccountApiTokens(id: string): Promise<ApiToken[]> {
-  return apiRequest(`/v1/service_account/${encodeURIComponent(id)}/_api_token`, 'get') as ApiToken[]
+  return apiRequest<ApiToken[]>(`/v1/service_account/${encodeURIComponent(id)}/_api_token`, 'get')
 }
 
 export async function generateServiceAccountApiToken(
   id: string,
   input: ApiTokenGenerate,
 ): Promise<string> {
-  return apiRequest(`/v1/service_account/${encodeURIComponent(id)}/_api_token`, 'post', {
+  return apiRequest<string>(`/v1/service_account/${encodeURIComponent(id)}/_api_token`, 'post', {
     body: input,
-  }) as string
+  })
 }
 
 export async function deleteServiceAccountApiToken(id: string, tokenId: string): Promise<void> {

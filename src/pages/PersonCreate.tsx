@@ -144,7 +144,7 @@ export default function PersonCreate() {
           <p className="page-note">{t('people.create.subtitle')}</p>
         </div>
         <div className="person-actions">
-          <button className="secondary-button" type="button" onClick={() => navigate('/people')}>
+          <button className="secondary-button" type="button" onClick={() => navigate('/admin/people')}>
             {t('people.backToPeople')}
           </button>
         </div>
@@ -217,7 +217,7 @@ export default function PersonCreate() {
             >
               {t('people.create.createAnother')}
             </button>
-            <button className="primary-button" type="button" onClick={() => navigate('/people')}>
+            <button className="primary-button" type="button" onClick={() => navigate('/admin/people')}>
               {t('people.backToPeople')}
             </button>
           </div>

@@ -68,19 +68,25 @@ function parseGroupDetail(entry: Entry): GroupDetail {
 }
 
 export async function fetchGroups(): Promise<GroupSummary[]> {
-  const entries = await apiRequest('/v1/group', 'get')
-  return (entries as GroupListResponse).map(parseGroup)
+  const entries = await apiRequest<GroupListResponse>('/v1/group', 'get')
+  return Array.isArray(entries) ? entries.map(parseGroup) : []
 }
 
 export async function searchGroups(query: string): Promise<GroupSummary[]> {
-  const entries = await apiRequest(`/v1/group/_search/${encodeURIComponent(query)}`, 'get')
-  return (entries as GroupSearchResponse).map(parseGroup)
+  const entries = await apiRequest<GroupSearchResponse>(
+    `/v1/group/_search/${encodeURIComponent(query)}`,
+    'get',
+  )
+  return Array.isArray(entries) ? entries.map(parseGroup) : []
 }
 
 export async function fetchGroup(id: string): Promise<GroupDetail | null> {
-  const entry = await apiRequest(`/v1/group/${encodeURIComponent(id)}`, 'get')
+  const entry = await apiRequest<GroupDetailResponse | null>(
+    `/v1/group/${encodeURIComponent(id)}`,
+    'get',
+  )
   if (!entry) return null
-  return parseGroupDetail(entry as GroupDetailResponse)
+  return parseGroupDetail(entry)
 }
 
 export async function createGroup(input: { name: string; entryManagedBy?: string }) {

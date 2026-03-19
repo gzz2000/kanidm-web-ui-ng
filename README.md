@@ -4,6 +4,8 @@ This project aims to implement a fully-featured web UI for the [kanidm](https://
 
 ![screenshot-login](./README.assets/screenshot-login.png)
 
+![screenshot-apps](README.assets/screenshot-apps.png)
+
 ![screenshot-myprofile](README.assets/screenshot-myprofile.png)
 
 ![screenshot-myprofile-p2](README.assets/screenshot-myprofile-p2.png)
@@ -18,6 +20,10 @@ This project aims to implement a fully-featured web UI for the [kanidm](https://
 
 ![screenshot-serviceaccount](README.assets/screenshot-serviceaccount.png)
 
+![screenshot-oauth2](README.assets/screenshot-oauth2.png)
+
+![screenshot-oauth2-manage](README.assets/screenshot-oauth2-manage.png)
+
 ## Roadmap
 
 - [x] User login flow (password, password+TOTP, passkey)
@@ -28,7 +34,7 @@ This project aims to implement a fully-featured web UI for the [kanidm](https://
 - [x] Group management
 - [x] Service accounts management
 - [x] Friendly user on boarding
-- [ ] OAuth2 clients
+- [x] OAuth2 clients
 - [ ] System (domain, db, etc.) management and customization
 
 

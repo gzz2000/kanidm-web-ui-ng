@@ -610,10 +610,6 @@
   border: 1px solid var(--border);
 }
 
-.oauth2-page input[type='file'] {
-  width: 100%;
-}
-
 .danger-card {
   border-color: rgba(255, 122, 122, 0.4);
 }

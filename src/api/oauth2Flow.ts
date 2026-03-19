@@ -26,10 +26,32 @@ function withAuthHeaders(contentType?: string) {
   return headers
 }
 
+function clearAuthForExpiredSession() {
+  tokenStore.clear()
+  window.dispatchEvent(new Event('kanidm:auth-expired'))
+}
+
 function extractRedirectUri(response: Response): string | null {
   const location = response.headers.get('location')
   if (location) return location
   if (response.redirected && response.url) return response.url
+  return null
+}
+
+async function extractAuthoriseActionRedirect(response: Response): Promise<string | null> {
+  if (response.status === 401) {
+    clearAuthForExpiredSession()
+    return null
+  }
+
+  const redirectUri = extractRedirectUri(response)
+  if (redirectUri) return redirectUri
+
+  if (!response.ok) {
+    const text = await response.text()
+    throw new Error(`Request failed (${response.status}): ${text}`)
+  }
+
   return null
 }
 
@@ -119,22 +141,7 @@ export async function oauth2AuthorisePermit(token: string): Promise<string | nul
     redirect: 'manual',
     body: JSON.stringify(token),
   })
-
-  if (response.status === 401) {
-    tokenStore.clear()
-    window.dispatchEvent(new Event('kanidm:auth-expired'))
-    return null
-  }
-
-  const redirectUri = extractRedirectUri(response)
-  if (redirectUri) return redirectUri
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Request failed (${response.status}): ${text}`)
-  }
-
-  return null
+  return extractAuthoriseActionRedirect(response)
 }
 
 export async function oauth2AuthoriseReject(token: string): Promise<string | null> {
@@ -146,20 +153,5 @@ export async function oauth2AuthoriseReject(token: string): Promise<string | nul
     redirect: 'manual',
     body: body.toString(),
   })
-
-  if (response.status === 401) {
-    tokenStore.clear()
-    window.dispatchEvent(new Event('kanidm:auth-expired'))
-    return null
-  }
-
-  const redirectUri = extractRedirectUri(response)
-  if (redirectUri) return redirectUri
-
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Request failed (${response.status}): ${text}`)
-  }
-
-  return null
+  return extractAuthoriseActionRedirect(response)
 }

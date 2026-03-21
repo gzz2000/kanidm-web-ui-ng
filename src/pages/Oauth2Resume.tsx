@@ -1,14 +1,12 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { oauth2Authorise } from '../api/oauth2Flow'
 import { useAuth } from '../auth/AuthContext'
 import {
   clearOauth2ConsentState,
-  clearOauth2PendingRequest,
   clearOauth2ResumeAttempted,
   hasOauth2ResumeAttempted,
-  loadOauth2PendingRequest,
   markOauth2ResumeAttempted,
   saveOauth2ConsentState,
 } from '../auth/oauth2FlowState'
@@ -17,13 +15,14 @@ export default function Oauth2Resume() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [message, setMessage] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
 
     const run = async () => {
-      const pending = loadOauth2PendingRequest()
+      const pending = searchParams.get('oauth2_continue')
       if (!pending) {
         setMessage(t('oauth2Flow.errors.missingResume'))
         return
@@ -35,36 +34,34 @@ export default function Oauth2Resume() {
 
       if (result.state === 'auth_required') {
         if (hasOauth2ResumeAttempted()) {
-          clearOauth2PendingRequest()
           clearOauth2ResumeAttempted()
           setMessage(t('oauth2Flow.errors.resumeLoop'))
           return
         }
         markOauth2ResumeAttempted()
-        navigate('/login', { replace: true })
+        navigate(`/login?oauth2_continue=${encodeURIComponent(pending)}`, { replace: true })
         return
       }
 
       clearOauth2ResumeAttempted()
 
       if (result.state === 'redirect') {
-        clearOauth2PendingRequest()
         clearOauth2ConsentState()
         window.location.assign(result.redirectUri)
         return
       }
       if (result.state === 'consent') {
         saveOauth2ConsentState(result.consent)
-        navigate('/oauth2/consent', { replace: true })
+        navigate(`/oauth2-ui/consent?oauth2_continue=${encodeURIComponent(pending)}`, {
+          replace: true,
+        })
         return
       }
       if (result.state === 'access_denied') {
-        clearOauth2PendingRequest()
         setMessage(t('oauth2Flow.errors.accessDenied'))
         return
       }
 
-      clearOauth2PendingRequest()
       setMessage(result.message || t('oauth2Flow.errors.invalidRequest'))
     }
 
@@ -76,7 +73,7 @@ export default function Oauth2Resume() {
     return () => {
       active = false
     }
-  }, [navigate, t])
+  }, [navigate, searchParams, t])
 
   return (
     <section className="centered-page">

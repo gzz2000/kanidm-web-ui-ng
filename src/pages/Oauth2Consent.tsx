@@ -1,12 +1,11 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { oauth2AuthorisePermit, oauth2AuthoriseReject } from '../api/oauth2Flow'
 import { useAuth } from '../auth/AuthContext'
 import { useSiteInfo } from '../site/SiteInfoContext'
 import {
   clearOauth2ConsentState,
-  clearOauth2PendingRequest,
   clearOauth2ResumeAttempted,
   loadOauth2ConsentState,
 } from '../auth/oauth2FlowState'
@@ -16,10 +15,20 @@ export default function Oauth2Consent() {
   const { user, signOut } = useAuth()
   const { displayName, imageUrl } = useSiteInfo()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const consent = loadOauth2ConsentState()
   const [loading, setLoading] = useState(false)
   const [switchingAccount, setSwitchingAccount] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
+  const oauth2Continue = searchParams.get('oauth2_continue')
+
+  useEffect(() => {
+    if (consent) return
+    if (!oauth2Continue) return
+    navigate(`/oauth2-ui/resume?oauth2_continue=${encodeURIComponent(oauth2Continue)}`, {
+      replace: true,
+    })
+  }, [consent, navigate, oauth2Continue])
 
   const toConsentErrorMessage = (error: unknown) => {
     if (!(error instanceof Error)) {
@@ -42,7 +51,6 @@ export default function Oauth2Consent() {
           ? await oauth2AuthorisePermit(consent.consentToken)
           : await oauth2AuthoriseReject(consent.consentToken)
       clearOauth2ConsentState()
-      clearOauth2PendingRequest()
       clearOauth2ResumeAttempted()
       if (redirectUri) {
         window.location.assign(redirectUri)
@@ -64,7 +72,10 @@ export default function Oauth2Consent() {
       clearOauth2ConsentState()
       clearOauth2ResumeAttempted()
       await signOut()
-      navigate('/login', { replace: true })
+      const loginTarget = oauth2Continue
+        ? `/login?oauth2_continue=${encodeURIComponent(oauth2Continue)}`
+        : '/login'
+      navigate(loginTarget, { replace: true })
     } catch (error) {
       setMessage(toConsentErrorMessage(error))
     } finally {

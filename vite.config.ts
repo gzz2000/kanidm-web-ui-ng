@@ -16,17 +16,10 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
-      '/oauth2': {
+      '/oauth2/': {
         target: 'https://localhost:8443',
         changeOrigin: true,
         secure: false,
-        bypass(req) {
-          const accept = req.headers.accept ?? ''
-          if (accept.includes('text/html')) {
-            return req.url
-          }
-          return undefined
-        },
       },
       '/docs': {
         target: 'https://localhost:8443',

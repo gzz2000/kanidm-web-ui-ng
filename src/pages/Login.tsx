@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import {
   authBegin,
@@ -10,7 +10,6 @@ import {
 } from '../api'
 import { performPasskeyRequest } from '../auth/webauthn'
 import { useAuth } from '../auth/AuthContext'
-import { loadOauth2PendingRequest } from '../auth/oauth2FlowState'
 import { useSiteInfo } from '../site/SiteInfoContext'
 import type { AuthAllowed, AuthMech, AuthResponse } from '../api/types'
 
@@ -35,6 +34,7 @@ function authSucceeded(response: AuthResponse) {
 
 export default function Login() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setAuthenticated } = useAuth()
   const { displayName, imageUrl } = useSiteInfo()
   const { t } = useTranslation()
@@ -60,8 +60,9 @@ export default function Login() {
 
   const handleSuccess = async () => {
     await setAuthenticated()
-    if (loadOauth2PendingRequest()) {
-      navigate('/oauth2/resume')
+    const oauth2Continue = searchParams.get('oauth2_continue')
+    if (oauth2Continue) {
+      navigate(`/oauth2-ui/resume?oauth2_continue=${encodeURIComponent(oauth2Continue)}`)
       return
     }
     navigate('/')

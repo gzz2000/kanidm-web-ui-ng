@@ -32,15 +32,15 @@ export const router = createBrowserRouter([
     element: <ResetCredentials />,
   },
   {
-    path: '/oauth2/authorise',
+    path: '/oauth2-ui/authorise',
     element: <Oauth2Authorise />,
   },
   {
-    path: '/oauth2/consent',
+    path: '/oauth2-ui/consent',
     element: <Oauth2Consent />,
   },
   {
-    path: '/oauth2/resume',
+    path: '/oauth2-ui/resume',
     element: <Oauth2Resume />,
   },
   {

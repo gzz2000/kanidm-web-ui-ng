@@ -4,11 +4,9 @@ import { useTranslation } from 'react-i18next'
 import { oauth2Authorise } from '../api/oauth2Flow'
 import { useAuth } from '../auth/AuthContext'
 import {
-  clearOauth2PendingRequest,
   clearOauth2ConsentState,
   clearOauth2ResumeAttempted,
   saveOauth2ConsentState,
-  saveOauth2PendingRequest,
 } from '../auth/oauth2FlowState'
 
 export default function Oauth2Authorise() {
@@ -23,17 +21,16 @@ export default function Oauth2Authorise() {
     const run = async () => {
       clearOauth2ResumeAttempted()
       clearOauth2ConsentState()
-      saveOauth2PendingRequest(`${location.pathname}${location.search}`)
 
       const result = await oauth2Authorise(new URLSearchParams(location.search))
       if (!active) return
 
       if (result.state === 'auth_required') {
-        navigate('/login', { replace: true })
+        const continueTo = `${location.pathname}${location.search}`
+        navigate(`/login?oauth2_continue=${encodeURIComponent(continueTo)}`, { replace: true })
         return
       }
       if (result.state === 'redirect') {
-        clearOauth2PendingRequest()
         clearOauth2ConsentState()
         clearOauth2ResumeAttempted()
         window.location.assign(result.redirectUri)
@@ -41,7 +38,10 @@ export default function Oauth2Authorise() {
       }
       if (result.state === 'consent') {
         saveOauth2ConsentState(result.consent)
-        navigate('/oauth2/consent', { replace: true })
+        const continueTo = `${location.pathname}${location.search}`
+        navigate(`/oauth2-ui/consent?oauth2_continue=${encodeURIComponent(continueTo)}`, {
+          replace: true,
+        })
         return
       }
       if (result.state === 'access_denied') {

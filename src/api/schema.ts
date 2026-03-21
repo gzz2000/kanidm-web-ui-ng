@@ -38,10 +38,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        get: operations["scim_application_id_get"];
         put?: never;
         post?: never;
-        delete: operations["scim_application_id_get"];
+        delete: operations["scim_application_id_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1037,6 +1037,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/person/{id}/_credential/_update_intent_send": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["person_id_credential_update_intent_send_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/person/{id}/_identify/_user": {
         parameters: {
             query?: never;
@@ -1754,6 +1770,7 @@ export interface components {
             /** Format: date-time */
             expiry?: string | null;
             read_write: boolean;
+            compact?: boolean;
         };
         /** @enum {string} */
         ApiTokenPurpose: "readonly" | "readwrite" | "synchronise";
@@ -1770,7 +1787,7 @@ export interface components {
                 has_image: boolean;
             };
         };
-        Attribute: "account" | "accountexpire" | "accountvalidfrom" | "acpcreateattr" | "acpcreateclass" | "acpenable" | "acpmodifyclass" | "acpmodifypresentclass" | "acpmodifyremoveclass" | "acpmodifypresentattr" | "acpmodifyremovedattr" | "acpreceiver" | "acpreceivergroup" | "acpsearchattr" | "acptargetscope" | "apitokensession" | "applicationpassword" | "applicationurl" | "attestedpasskeys" | "attr" | "attributename" | "attributetype" | "authsessionexpiry" | "authpasswordminimumlength" | "badlistpassword" | "certificate" | "cascadedeleted" | "claim" | "class" | "classname" | "cn" | "cookieprivatekey" | "createdatcid" | "credentialupdateintenttoken" | "credentialtypeminimum" | "deniedname" | "deleteafter" | "description" | "directmemberof" | "displayname" | "dn" | "domain" | "domainalloweastereggs" | "domaindevelopmenttaint" | "domaindisplayname" | "domainldapbasedn" | "domainname" | "domainssid" | "domaintokenkey" | "domainuuid" | "dyngroup" | "dyngroupfilter" | "dynmember" | "enabled" | "email" | "emailalternative" | "emailprimary" | "entrydn" | "entrymanagedby" | "entryuuid" | "es256privatekeyder" | "excludes" | "fernetprivatekeystr" | "gecos" | "gidnumber" | "grantuihint" | "group" | "hmacnamehistory" | "idverificationeckey" | "image" | "index" | "indexed" | "inmemoriam" | "ipanthash" | "ipasshpubkey" | "jwses256privatekey" | "keyactionrotate" | "keyactionrevoke" | "keyactionimportjwses256" | "keyactionimportjwsrs256" | "keyinternaldata" | "keyprovider" | "lastmodifiedcid" | "ldapallowunixpwbind" | "ldapemailaddress" | "ldapkeys" | "ldapmaxqueryableattrs" | "legalname" | "limitsearchmaxresults" | "limitsearchmaxfiltertest" | "linkedgroup" | "loginshell" | "mail" | "maildestination" | "may" | "member" | "memberof" | "messagetemplate" | "multivalue" | "must" | "name" | "namehistory" | "noindex" | "nsuniqueid" | "nsaccountlock" | "oauth2allowinsecureclientdisablepkce" | "oauth2allowlocalhostredirect" | "oauth2authorisationendpoint" | "oauth2clientid" | "oauth2clientsecret" | "oauth2consentscopemap" | "oauth2deviceflowenable" | "oauth2jwtlegacycryptoenable" | "oauth2prefershortusername" | "oauth2requestscopes" | "oauth2rsbasicsecret" | "oauth2rsclaimmap" | "oauth2rsimplicitscopes" | "oauth2rsname" | "oauth2rsorigin" | "oauth2rsoriginlanding" | "oauth2rsscopemap" | "oauth2rssupscopemap" | "oauth2rstokenkey" | "oauth2session" | "oauth2strictredirecturi" | "oauth2tokenendpoint" | "oauth2accountcredentialuuid" | "oauth2accountprovider" | "oauth2accountuniqueuserid" | "oauth2consentpromptenable" | "objectclass" | "othernoindex" | "passkeys" | "passwordimport" | "patchlevel" | "phantom" | "primarycredential" | "privatecookiekey" | "privilegeexpiry" | "radiussecret" | "recycleddirectmemberof" | "refers" | "replicated" | "rs256privatekeyder" | "schemas" | "scope" | "sendafter" | "sentat" | "sourceuuid" | "spn" | "ldapsshpublickey" | "sshpublickey" | "sudohost" | "supplements" | "systemsupplements" | "syncallowed" | "syncclass" | "synccookie" | "synccredentialportal" | "syncexternalid" | "syncparentuuid" | "synctokensession" | "syncyieldauthority" | "syntax" | "systemexcludes" | "systemmay" | "systemmust" | "term" | "totpimport" | "uid" | "uidnumber" | "unique" | "unixpassword" | "unixpasswordimport" | "userauthtokensession" | "userid" | "userpassword" | "uuid" | "version" | "webauthnattestationcalist" | "allowprimarycredfallback" | "nonexist" | "testattr" | "testnumber" | "extra" | "testnotallowed" | {
+        Attribute: "account" | "accountexpire" | "accountvalidfrom" | "accountsoftlockexpire" | "acpcreateattr" | "acpcreateclass" | "acpenable" | "acpmodifyclass" | "acpmodifypresentclass" | "acpmodifyremoveclass" | "acpmodifypresentattr" | "acpmodifyremovedattr" | "acpreceiver" | "acpreceivergroup" | "acpsearchattr" | "acptargetscope" | "apitokensession" | "applicationpassword" | "applicationurl" | "attestedpasskeys" | "attr" | "attributename" | "attributetype" | "authsessionexpiry" | "authpasswordminimumlength" | "badlistpassword" | "certificate" | "cascadedeleted" | "claim" | "class" | "classname" | "cn" | "cookieprivatekey" | "createdatcid" | "credentialupdateintenttoken" | "credentialtypeminimum" | "deniedname" | "deleteafter" | "description" | "directmemberof" | "displayname" | "dn" | "domain" | "domainalloweastereggs" | "domaindevelopmenttaint" | "domaindisplayname" | "domainldapbasedn" | "domainname" | "domainssid" | "domaintokenkey" | "domainuuid" | "dyngroup" | "dyngroupfilter" | "dynmember" | "enabled" | "email" | "emailalternative" | "emailprimary" | "entrydn" | "entrymanagedby" | "entryuuid" | "es256privatekeyder" | "excludes" | "fernetprivatekeystr" | "gecos" | "gidnumber" | "grantuihint" | "group" | "hmacnamehistory" | "homedirectory" | "idverificationeckey" | "image" | "index" | "indexed" | "inmemoriam" | "ipanthash" | "ipasshpubkey" | "jwses256privatekey" | "keyactionrotate" | "keyactionrevoke" | "keyactionimportjwses256" | "keyactionimportjwsrs256" | "keyinternaldata" | "keyprovider" | "lastmodifiedcid" | "ldapallowunixpwbind" | "ldapemailaddress" | "ldapkeys" | "ldapmaxqueryableattrs" | "legalname" | "limitsearchmaxresults" | "limitsearchmaxfiltertest" | "linkedgroup" | "loginshell" | "mail" | "maildestination" | "may" | "member" | "membercreateonce" | "memberof" | "messagetemplate" | "multivalue" | "must" | "name" | "namehistory" | "noindex" | "nsuniqueid" | "nsaccountlock" | "oauth2allowinsecureclientdisablepkce" | "oauth2allowlocalhostredirect" | "oauth2authorisationendpoint" | "oauth2clientid" | "oauth2clientsecret" | "oauth2consentscopemap" | "oauth2deviceflowenable" | "oauth2jwtlegacycryptoenable" | "oauth2prefershortusername" | "oauth2requestscopes" | "oauth2rsbasicsecret" | "oauth2rsclaimmap" | "oauth2rsimplicitscopes" | "oauth2rsname" | "oauth2rsorigin" | "oauth2rsoriginlanding" | "oauth2rsscopemap" | "oauth2rssupscopemap" | "oauth2rstokenkey" | "oauth2session" | "oauth2strictredirecturi" | "oauth2tokenendpoint" | "oauth2accountcredentialuuid" | "oauth2accountprovider" | "oauth2accountuniqueuserid" | "oauth2consentpromptenable" | "objectclass" | "othernoindex" | "passkeys" | "passwordimport" | "passwordchangedtime" | "patchlevel" | "phantom" | "primarycredential" | "privatecookiekey" | "privilegeexpiry" | "radiussecret" | "recycleddirectmemberof" | "refers" | "replicated" | "rs256privatekeyder" | "s256" | "schemas" | "scope" | "sendafter" | "sentat" | "sourceuuid" | "spn" | "ldapsshpublickey" | "sshpublickey" | "sudohost" | "supplements" | "systemsupplements" | "syncallowed" | "syncclass" | "synccookie" | "synccredentialportal" | "syncexternalid" | "syncparentuuid" | "synctokensession" | "syncyieldauthority" | "syntax" | "systemexcludes" | "systemmay" | "systemmust" | "term" | "totpimport" | "uid" | "uidnumber" | "unique" | "unixpassword" | "unixpasswordimport" | "userauthtokensession" | "userid" | "userpassword" | "uuid" | "version" | "webauthnattestationcalist" | "allowprimarycredfallback" | "nonexist" | "testattr" | "testnumber" | "extra" | "testnotallowed" | {
             custom: string;
         };
         /**
@@ -1883,6 +1900,15 @@ export interface components {
         CUExtPortal: "None" | "Hidden" | {
             /** Format: uri */
             Some: string;
+        };
+        /**
+         * @description Structure denoting the parameters for triggering a credential update intent
+         *     token to be send to the account.
+         */
+        CUIntentSend: {
+            /** Format: int64 */
+            ttl?: number | null;
+            email?: string | null;
         };
         CUIntentToken: {
             token: string;
@@ -2107,7 +2133,7 @@ export interface components {
         } | "cryptographyerror" | "resourcelimit" | "queuedisconnected" | "webauthn" | {
             /** Format: date-time */
             wait: string;
-        } | "replreplayfailure" | "replentrynotchanged" | "replinvalidruvstate" | "repldomainlevelunsatisfiable" | "repldomainuuidmismatch" | "replserveruuidsplitdatastate" | "transactionalreadycommitted" | "cannotstartmfaduringongoingmfasession" | "valuedenyname" | "databaselockacquisitiontimeout" | "referenceloop" | "au0001invalidstate" | "au0002jwsserialisation" | "au0003jwssignature" | "au0004userauthtokeninvalid" | "au0005delayedprocessfailure" | "au0006credentialmaynotreauthenticate" | "au0007userauthtokeninvalid" | "au0008clientauthinfoprevalidation" | "kg001tasktimeout" | "kg002taskcommfailure" | "kg003cacheclearfailed" | "kg004unknownfeatureuuid" | "kg005howdidyouevenmanagethis" | "kg006datastructurecorruption" | "cu0001webauthnattestationnottrusted" | "cu0002webauthnregistrationerror" | "cu0003webauthnusernotverified" | "cu0004sessioninconsistent" | "cu0005intenttokenconflict" | "cu0006intenttokeninvalidated" | "vs0001incomingreplsshpublickey" | "vs0002certificatepublickeydigest" | "vs0003certificatederdecode" | "vs0004certificatepublickeydigest" | "vs0005certificatepublickeydigest" | "vl0001valuesshpublickeystring" | "ld0001anonymousnotallowed" | "db0001mismatchedrestoreversion" | "db0002mismatchedrestoreversion" | "db0003filterresolvecachebuild" | "db0004databasetooold" | "sc0001incomingsshpublickey" | "sc0002referencesyntaxinvalid" | "sc0003mailsyntaxinvalid" | "sc0004uuidsyntaxinvalid" | "sc0005boolsyntaxinvalid" | "sc0006uint32syntaxinvalid" | "sc0007urlsyntaxinvalid" | "sc0008syntaxtypesyntaxinvalid" | "sc0009indextypesyntaxinvalid" | "sc0010datetimesyntaxinvalid" | "sc0011addresssyntaxinvalid" | "sc0012certificatesyntaxinvalid" | "sc0013certificateinvalidder" | "sc0014certificateinvaliddigest" | "sc0015credentialtypesyntaxinvalid" | "sc0016inamesyntaxinvalid" | "sc0017iutf8syntaxinvalid" | "sc0018nsuniqueidsyntaxinvalid" | "sc0019oauth2scopesyntaxinvalid" | "sc0020oauth2scopemapsyntaxinvalid" | "sc0021oauth2scopemapmissinggroupidentifier" | "sc0022oauth2claimmapsyntaxinvalid" | "sc0023oauth2claimmapmissinggroupidentifier" | "sc0024sshpublickeysyntaxinvalid" | "sc0025uihintsyntaxinvalid" | "sc0026utf8syntaxinvalid" | "sc0027classsetinvalid" | "sc0028createduuidsinvalid" | "sc0029paginationoutofbounds" | "sc0030sha256syntaxinvalid" | "sc0031int64syntaxinvalid" | "sc0032uint64syntaxinvalid" | "mg0001invalidremigrationlevel" | "mg0002raisedomainlevelexceedsmaximum" | "mg0003serverphaseinvalidformigration" | "mg0004domainlevelindevelopment" | "mg0005gidconstraintsnotmet" | "mg0006skconstraintsnotmet" | "mg0007oauth2strictconstraintsnotmet" | "mg0008skipupgradeattempted" | "mg0009invalidtargetlevelforbootstrap" | "kp0001keyprovidernotloaded" | "kp0002keyproviderinvalidclass" | "kp0003keyproviderinvalidtype" | "kp0004keyprovidermissingattributename" | "kp0005keyproviderduplicate" | "kp0006keyobjectjwtes256generation" | "kp0007keyproviderdefaultnotavailable" | "kp0008keyobjectmissinguuid" | "kp0009keyobjectprivatetoder" | "kp0010keyobjectsignertoverifier" | "kp0011keyobjectmissingclass" | "kp0012keyobjectmissingprovider" | "kp0012keyprovidernotloaded" | "kp0013keyobjectjwses256derinvalid" | "kp0014keyobjectsignertoverifier" | "kp0015keyobjectjwses256derinvalid" | "kp0016keyobjectjwses256derinvalid" | "kp0017keyprovidernosuchkey" | "kp0018keyprovidernosuchkey" | "kp0019keyproviderunsupportedalgorithm" | "kp0020keyobjectnoactivesigningkeys" | "kp0021keyobjectjwses256signature" | "kp0022keyobjectjwsnotassociated" | "kp0023keyobjectjwskeyrevoked" | "kp0024keyobjectjwsinvalid" | "kp0025keyprovidernotavailable" | "kp0026keyobjectnosuchkey" | "kp0027keyobjectpublictoder" | "kp0028keyobjectimportjwses256derinvalid" | "kp0029keyobjectsignertoverifier" | "kp0030keyobjectpublictoder" | "kp0031keyobjectnotfound" | "kp0032keyprovidernosuchkey" | "kp0033keyprovidernosuchkey" | "kp0034keyproviderunsupportedalgorithm" | "kp0035keyobjectjwea128gcmgeneration" | "kp0036keyobjectprivatetobytes" | "kp0037keyobjectimportjwea128gcminvalid" | "kp0038keyobjectimportjwea128gcminvalid" | "kp0039keyobjectjwenotassociated" | "kp0040keyobjectjweinvalid" | "kp0041keyobjectjwerevoked" | "kp0042keyobjectnoactiveencryptionkeys" | "kp0043keyobjectjwea128gcmencryption" | "kp0044keyobjectjwspublicjwk" | "kp0045keyobjectimportjwsrs256derinvalid" | "kp0046keyobjectsignertoverifier" | "kp0047keyobjectpublictoder" | "kp0048keyobjectjwtrs256generation" | "kp0049keyobjectsignertoverifier" | "kp0050keyobjectprivatetoder" | "kp0051keyobjectpublictoder" | "kp0052keyobjectjwsrs256derinvalid" | "kp0053keyobjectsignertoverifier" | "kp0054keyobjectjwsrs256derinvalid" | "kp0055keyobjectjwsrs256derinvalid" | "kp0056keyobjectjwsrs256signature" | "kp0057keyobjectjwsnotassociated" | "kp0058keyobjectjwsinvalid" | "kp0059keyobjectjwskeyrevoked" | "kp0060keyobjectjwspublicjwk" | "kp0061keyobjectnoactivesigningkeys" | "kp0062keyprovidernosuchkey" | "kp0063keyobjectjwshs256derinvalid" | "kp0064keyobjectsignertoverifier" | "kp0065keyobjectjwths256generation" | "kp0066keyobjectjwshs256derinvalid" | "kp0067keyobjectsignertoverifier" | "kp0068keyobjectjwshs256derinvalid" | "kp0069keyobjectnoactivesigningkeys" | "kp0070keyobjectjwshs256signature" | "kp0071keyobjectprivatetoder" | "kp0072keyobjecths256invalid" | "kp0073keyobjecths256invalid" | "kp0074keyobjectnoactivesigningkeys" | "kp0075keyobjecthmacinvalidlength" | "kp0076keyobjecthkdfoutputlengthinvalid" | "kp0077keyprovidernosuchkey" | "kp0078keyobjectnotfound" | "kp0079keyobjectnotfound" | "pl0001gidoverlapssystemrange" | "ui0001challengeserialisation" | "ui0002invalidstate" | "ui0003invalidoauth2resume" | "ui0004memberalreadyexists" | "ku001initwhilesessionactive" | "ku002continuewhilesessioninactive" | "ku003pamauthfailed" | "ku004paminitfailed" | "ku005errorcheckingaccount" | "ku006onlyrootallowed";
+        } | "replreplayfailure" | "replentrynotchanged" | "replinvalidruvstate" | "repldomainlevelunsatisfiable" | "repldomainuuidmismatch" | "replserveruuidsplitdatastate" | "transactionalreadycommitted" | "cannotstartmfaduringongoingmfasession" | "valuedenyname" | "databaselockacquisitiontimeout" | "referenceloop" | "sessionmaynotreauth" | "au0001invalidstate" | "au0002jwsserialisation" | "au0003jwssignature" | "au0004userauthtokeninvalid" | "au0005delayedprocessfailure" | "au0006credentialmaynotreauthenticate" | "au0007userauthtokeninvalid" | "au0008clientauthinfoprevalidation" | "kg001tasktimeout" | "kg002taskcommfailure" | "kg003cacheclearfailed" | "kg004unknownfeatureuuid" | "kg005howdidyouevenmanagethis" | "kg006datastructurecorruption" | "cu0001webauthnattestationnottrusted" | "cu0002webauthnregistrationerror" | "cu0003webauthnusernotverified" | "cu0004sessioninconsistent" | "cu0005intenttokenconflict" | "cu0006intenttokeninvalidated" | "cu0007accountemailnotfound" | "cu0008accountmissingemail" | "vs0001incomingreplsshpublickey" | "vs0002certificatepublickeydigest" | "vs0003certificatederdecode" | "vs0004certificatepublickeydigest" | "vs0005certificatepublickeydigest" | "vl0001valuesshpublickeystring" | "ld0001anonymousnotallowed" | "db0001mismatchedrestoreversion" | "db0002mismatchedrestoreversion" | "db0003filterresolvecachebuild" | "db0004databasetooold" | "sc0001incomingsshpublickey" | "sc0002referencesyntaxinvalid" | "sc0003mailsyntaxinvalid" | "sc0004uuidsyntaxinvalid" | "sc0005boolsyntaxinvalid" | "sc0006uint32syntaxinvalid" | "sc0007urlsyntaxinvalid" | "sc0008syntaxtypesyntaxinvalid" | "sc0009indextypesyntaxinvalid" | "sc0010datetimesyntaxinvalid" | "sc0011addresssyntaxinvalid" | "sc0012certificatesyntaxinvalid" | "sc0013certificateinvalidder" | "sc0014certificateinvaliddigest" | "sc0015credentialtypesyntaxinvalid" | "sc0016inamesyntaxinvalid" | "sc0017iutf8syntaxinvalid" | "sc0018nsuniqueidsyntaxinvalid" | "sc0019oauth2scopesyntaxinvalid" | "sc0020oauth2scopemapsyntaxinvalid" | "sc0021oauth2scopemapmissinggroupidentifier" | "sc0022oauth2claimmapsyntaxinvalid" | "sc0023oauth2claimmapmissinggroupidentifier" | "sc0024sshpublickeysyntaxinvalid" | "sc0025uihintsyntaxinvalid" | "sc0026utf8syntaxinvalid" | "sc0027classsetinvalid" | "sc0028createduuidsinvalid" | "sc0029paginationoutofbounds" | "sc0030sha256syntaxinvalid" | "sc0031int64syntaxinvalid" | "sc0032uint64syntaxinvalid" | "sc0033assertioncontainsduplicateuuids" | "mg0001invalidremigrationlevel" | "mg0002raisedomainlevelexceedsmaximum" | "mg0003serverphaseinvalidformigration" | "mg0004domainlevelindevelopment" | "mg0005gidconstraintsnotmet" | "mg0006skconstraintsnotmet" | "mg0007oauth2strictconstraintsnotmet" | "mg0008skipupgradeattempted" | "mg0009invalidtargetlevelforbootstrap" | "mg0010downgradenotallowed" | "kp0001keyprovidernotloaded" | "kp0002keyproviderinvalidclass" | "kp0003keyproviderinvalidtype" | "kp0004keyprovidermissingattributename" | "kp0005keyproviderduplicate" | "kp0006keyobjectjwtes256generation" | "kp0007keyproviderdefaultnotavailable" | "kp0008keyobjectmissinguuid" | "kp0009keyobjectprivatetoder" | "kp0010keyobjectsignertoverifier" | "kp0011keyobjectmissingclass" | "kp0012keyobjectmissingprovider" | "kp0012keyprovidernotloaded" | "kp0013keyobjectjwses256derinvalid" | "kp0014keyobjectsignertoverifier" | "kp0015keyobjectjwses256derinvalid" | "kp0016keyobjectjwses256derinvalid" | "kp0017keyprovidernosuchkey" | "kp0018keyprovidernosuchkey" | "kp0019keyproviderunsupportedalgorithm" | "kp0020keyobjectnoactivesigningkeys" | "kp0021keyobjectjwses256signature" | "kp0022keyobjectjwsnotassociated" | "kp0023keyobjectjwskeyrevoked" | "kp0024keyobjectjwsinvalid" | "kp0025keyprovidernotavailable" | "kp0026keyobjectnosuchkey" | "kp0027keyobjectpublictoder" | "kp0028keyobjectimportjwses256derinvalid" | "kp0029keyobjectsignertoverifier" | "kp0030keyobjectpublictoder" | "kp0031keyobjectnotfound" | "kp0032keyprovidernosuchkey" | "kp0033keyprovidernosuchkey" | "kp0034keyproviderunsupportedalgorithm" | "kp0035keyobjectjwea128gcmgeneration" | "kp0036keyobjectprivatetobytes" | "kp0037keyobjectimportjwea128gcminvalid" | "kp0038keyobjectimportjwea128gcminvalid" | "kp0039keyobjectjwenotassociated" | "kp0040keyobjectjweinvalid" | "kp0041keyobjectjwerevoked" | "kp0042keyobjectnoactiveencryptionkeys" | "kp0043keyobjectjwea128gcmencryption" | "kp0044keyobjectjwspublicjwk" | "kp0045keyobjectimportjwsrs256derinvalid" | "kp0046keyobjectsignertoverifier" | "kp0047keyobjectpublictoder" | "kp0048keyobjectjwtrs256generation" | "kp0049keyobjectsignertoverifier" | "kp0050keyobjectprivatetoder" | "kp0051keyobjectpublictoder" | "kp0052keyobjectjwsrs256derinvalid" | "kp0053keyobjectsignertoverifier" | "kp0054keyobjectjwsrs256derinvalid" | "kp0055keyobjectjwsrs256derinvalid" | "kp0056keyobjectjwsrs256signature" | "kp0057keyobjectjwsnotassociated" | "kp0058keyobjectjwsinvalid" | "kp0059keyobjectjwskeyrevoked" | "kp0060keyobjectjwspublicjwk" | "kp0061keyobjectnoactivesigningkeys" | "kp0062keyprovidernosuchkey" | "kp0063keyobjectjwshs256derinvalid" | "kp0064keyobjectsignertoverifier" | "kp0065keyobjectjwths256generation" | "kp0066keyobjectjwshs256derinvalid" | "kp0067keyobjectsignertoverifier" | "kp0068keyobjectjwshs256derinvalid" | "kp0069keyobjectnoactivesigningkeys" | "kp0070keyobjectjwshs256signature" | "kp0071keyobjectprivatetoder" | "kp0072keyobjecths256invalid" | "kp0073keyobjecths256invalid" | "kp0074keyobjectnoactivesigningkeys" | "kp0075keyobjecthmacinvalidlength" | "kp0076keyobjecthkdfoutputlengthinvalid" | "kp0077keyprovidernosuchkey" | "kp0078keyobjectnotfound" | "kp0079keyobjectnotfound" | "kp0080keyprovidernosuchkey" | "pl0001gidoverlapssystemrange" | "ui0001challengeserialisation" | "ui0002invalidstate" | "ui0003invalidoauth2resume" | "ui0004memberalreadyexists" | "ku001initwhilesessionactive" | "ku002continuewhilesessioninactive" | "ku003pamauthfailed" | "ku004paminitfailed" | "ku005errorcheckingaccount" | "ku006onlyrootallowed";
         PasskeyDetail: {
             /** Format: uuid */
             uuid: string;
@@ -2202,6 +2228,16 @@ export interface components {
         } & {
             [key: string]: unknown;
         });
+        ScimListResponse: {
+            schemas: string[];
+            /** Format: int64 */
+            totalResults: number;
+            /** Format: int64 */
+            itemsPerPage?: number;
+            /** Format: int64 */
+            startIndex?: number;
+            resources: components["schemas"]["ScimEntry"][];
+        };
         ScimMeta: {
             resourceType: string;
             /** Format: date-time */
@@ -2411,7 +2447,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScimEntry"];
+                    "application/json": components["schemas"]["ScimListResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -2497,6 +2533,48 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
+                    "application/json": components["schemas"]["ScimEntry"];
+                };
+            };
+            /** @description Invalid Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authorization required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Authorized */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    scim_application_id_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
                     "application/json": unknown;
                 };
             };
@@ -2537,7 +2615,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScimEntry"];
+                    "application/json": components["schemas"]["ScimListResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -2577,7 +2655,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScimEntry"];
+                    "application/json": components["schemas"]["ScimListResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -2617,7 +2695,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScimEntry"];
+                    "application/json": components["schemas"]["ScimListResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -2829,7 +2907,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScimEntry"];
+                    "application/json": components["schemas"]["ScimListResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -2869,7 +2947,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ScimEntry"];
+                    "application/json": components["schemas"]["ScimListResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -3253,7 +3331,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": boolean;
                 };
             };
         };
@@ -3653,7 +3731,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AuthResponse"];
                 };
             };
             /** @description Invalid Request */
@@ -6224,6 +6302,52 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
+                content: {
+                    "application/json": components["schemas"]["CUIntentToken"];
+                };
+            };
+            /** @description Invalid Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authorization required */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not Authorized */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    person_id_credential_update_intent_send_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CUIntentSend"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
                 content?: never;
             };
             /** @description Invalid Request */
@@ -6983,7 +7107,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["AuthResponse"];
                 };
             };
             /** @description Invalid Request */

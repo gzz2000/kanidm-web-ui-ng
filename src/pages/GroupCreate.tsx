@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
 import { applyDomain, extractDomainSuffix } from '../utils/strings'
 import { isAccessControlAdmin, isGroupAdmin } from '../utils/groupAccess'
+import { isDuplicateConflict } from '../utils/errors'
 
 export default function GroupCreate() {
   const navigate = useNavigate()
@@ -61,7 +62,11 @@ export default function GroupCreate() {
       void queryClient.invalidateQueries({ queryKey: ['groups-list'] })
       navigate(`/admin/groups/${encodeURIComponent(trimmedName)}`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : t('groups.create.messages.failed'))
+      if (isDuplicateConflict(error)) {
+        setMessage(t('common.duplicateValue'))
+      } else {
+        setMessage(error instanceof Error ? error.message : t('groups.create.messages.failed'))
+      }
     } finally {
       setLoading(false)
     }

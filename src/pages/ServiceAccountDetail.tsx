@@ -512,6 +512,7 @@ export default function ServiceAccountDetail() {
         label,
         expiry: expiryIso ?? null,
         read_write: apiTokenReadWrite,
+        compact: false,
       })
       setCreatedToken(token)
       setApiTokenLabel('')

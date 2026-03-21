@@ -8,6 +8,7 @@ import {
   createPerson,
   fetchGroups,
   fetchPerson,
+  sendCredentialResetIntent,
   setPersonUnix,
 } from '../api'
 import type { GroupSummary } from '../api/groups'
@@ -19,12 +20,23 @@ import {
   hasAnyGroup,
   isUnixAdmin,
 } from '../utils/groupAccess'
+import {
+  isDuplicateConflict,
+  isResetIntentAccountEmailNotFound,
+  isResetIntentMissingEmail,
+} from '../utils/errors'
 
 export default function PersonCreate() {
   const navigate = useNavigate()
   const { t } = useTranslation()
   const queryClient = useQueryClient()
-  const { canEdit, memberOf, requestReauth } = useAccess()
+  const {
+    canEdit,
+    memberOf,
+    requestReauth,
+    mailSendingConfigured,
+    ensureMailSendingConfigured,
+  } = useAccess()
   const { user } = useAuth()
   const [name, setName] = useState('')
   const [displayName, setDisplayName] = useState('')
@@ -40,6 +52,9 @@ export default function PersonCreate() {
   const [resetToken, setResetToken] = useState<{ token: string; expiry_time?: string } | null>(null)
   const [resetMessage, setResetMessage] = useState<string | null>(null)
   const [resetLoading, setResetLoading] = useState(false)
+  const [resetSendLoading, setResetSendLoading] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [showResetEmailControls, setShowResetEmailControls] = useState(true)
   const [resetCopyTip, setResetCopyTip] = useState(false)
 
   const canCreate = hasAnyGroup(memberOf, ['idm_people_admins', 'idm_people_on_boarding'])
@@ -48,6 +63,18 @@ export default function PersonCreate() {
     'idm_people_on_boarding',
     'idm_service_desk',
   ])
+
+  useEffect(() => {
+    if (!canResetToken) return
+    let active = true
+    void ensureMailSendingConfigured().then((configured) => {
+      if (!active) return
+      setShowResetEmailControls(configured)
+    })
+    return () => {
+      active = false
+    }
+  }, [canResetToken, ensureMailSendingConfigured])
   const canManagePosix = isUnixAdmin(memberOf)
   const canManageGroup = useMemo(() => {
     return (group: GroupSummary) => canManageGroupEntry(group.entryManagedBy, user, memberOf)
@@ -134,11 +161,37 @@ export default function PersonCreate() {
         await handleGenerateResetToken(personId)
       }
     } catch (error) {
-      setMessage(
-        error instanceof Error ? error.message : t('people.create.messages.failed'),
-      )
+      if (isDuplicateConflict(error)) {
+        setMessage(t('common.duplicateValue'))
+      } else {
+        setMessage(error instanceof Error ? error.message : t('people.create.messages.failed'))
+      }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleSendResetIntent = async (personId: string) => {
+    if (!canEdit) {
+      requestReauth()
+      return
+    }
+    setResetSendLoading(true)
+    setResetMessage(null)
+    try {
+      const email = resetEmail.trim() || undefined
+      await sendCredentialResetIntent(personId, { ttl: 3600, email })
+      setResetMessage(t('people.messages.resetSent'))
+    } catch (error) {
+      if (isResetIntentMissingEmail(error)) {
+        setResetMessage(t('people.messages.resetSendMissingEmail'))
+      } else if (isResetIntentAccountEmailNotFound(error)) {
+        setResetMessage(t('people.messages.resetSendEmailNotFound'))
+      } else {
+        setResetMessage(error instanceof Error ? error.message : t('people.messages.resetSendFailed'))
+      }
+    } finally {
+      setResetSendLoading(false)
     }
   }
 
@@ -171,6 +224,21 @@ export default function PersonCreate() {
             <div className="stacked-form">
               <p>{t('people.create.resetIntro')}</p>
               {resetMessage && <p className="inline-feedback">{resetMessage}</p>}
+              {showResetEmailControls && mailSendingConfigured && (
+                <div className="field">
+                  <label>{t('people.labels.resetEmailOptional')}</label>
+                  <input
+                    value={resetEmail}
+                    onChange={(event) => setResetEmail(event.target.value)}
+                    placeholder={t('people.detail.resetEmailPlaceholder')}
+                    readOnly={!canEdit}
+                    onFocus={() => {
+                      if (!canEdit) requestReauth()
+                    }}
+                  />
+                  <span className="muted-text">{t('people.detail.resetEmailHint')}</span>
+                </div>
+              )}
               {resetToken ? (
                 <div className="token-summary">
                   <div className="copy-row">
@@ -202,6 +270,18 @@ export default function PersonCreate() {
                   disabled={resetLoading}
                 >
                   {resetLoading ? t('people.create.resetCreating') : t('people.create.resetCreate')}
+                </button>
+              )}
+              {showResetEmailControls && mailSendingConfigured && (
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => {
+                    void handleSendResetIntent(createdPersonId)
+                  }}
+                  disabled={resetSendLoading}
+                >
+                  {resetSendLoading ? t('people.detail.resetSending') : t('people.detail.resetSend')}
                 </button>
               )}
             </div>

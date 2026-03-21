@@ -89,30 +89,56 @@ export default function AccountGroupSelect({
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const optionsQuery = useQuery({
-    queryKey: ['account-group-select', includePeople, includeGroups, includeServiceAccounts],
-    queryFn: async () => {
-      const tasks: Promise<AccountGroupOption[]>[] = []
-      if (includePeople) {
-        tasks.push(fetchPeople().then((entries) => entries.map(toPersonOption)))
-      }
-      if (includeGroups) {
-        tasks.push(fetchGroups().then((entries) => entries.map(toGroupOption)))
-      }
-      if (includeServiceAccounts) {
-        tasks.push(fetchServiceAccounts().then((entries) => entries.map(toServiceAccountOption)))
-      }
-      const lists = await Promise.all(tasks)
-      const map = new Map(lists.flat().map((entry) => [entry.uuid, entry]))
-      return Array.from(map.values())
-    },
-    enabled: open && (includePeople || includeGroups || includeServiceAccounts),
-    staleTime: 300_000,
-    gcTime: 900_000,
+  const peopleQuery = useQuery({
+    queryKey: ['people-list'],
+    queryFn: fetchPeople,
+    enabled: open && includePeople,
+    staleTime: 30_000,
+    gcTime: 300_000,
     retry: 0,
   })
-  const options = useMemo(() => optionsQuery.data ?? [], [optionsQuery.data])
-  const loading = open && optionsQuery.isFetching
+  const groupsQuery = useQuery({
+    queryKey: ['groups-list'],
+    queryFn: fetchGroups,
+    enabled: open && includeGroups,
+    staleTime: 30_000,
+    gcTime: 300_000,
+    retry: 0,
+  })
+  const serviceAccountsQuery = useQuery({
+    queryKey: ['service-accounts-list'],
+    queryFn: fetchServiceAccounts,
+    enabled: open && includeServiceAccounts,
+    staleTime: 30_000,
+    gcTime: 300_000,
+    retry: 0,
+  })
+  const options = useMemo(() => {
+    const all: AccountGroupOption[] = []
+    if (includePeople && peopleQuery.data) {
+      all.push(...peopleQuery.data.map(toPersonOption))
+    }
+    if (includeGroups && groupsQuery.data) {
+      all.push(...groupsQuery.data.map(toGroupOption))
+    }
+    if (includeServiceAccounts && serviceAccountsQuery.data) {
+      all.push(...serviceAccountsQuery.data.map(toServiceAccountOption))
+    }
+    const map = new Map(all.map((entry) => [entry.uuid, entry]))
+    return Array.from(map.values())
+  }, [
+    groupsQuery.data,
+    includeGroups,
+    includePeople,
+    includeServiceAccounts,
+    peopleQuery.data,
+    serviceAccountsQuery.data,
+  ])
+  const loading =
+    open &&
+    ((includePeople && peopleQuery.isFetching) ||
+      (includeGroups && groupsQuery.isFetching) ||
+      (includeServiceAccounts && serviceAccountsQuery.isFetching))
 
   const filtered = useMemo(
     () => options.filter((option) => matchesOption(option, query)),

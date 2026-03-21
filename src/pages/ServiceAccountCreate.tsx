@@ -8,6 +8,7 @@ import { useAuth } from '../auth/AuthContext'
 import AccountGroupSelect from '../components/AccountGroupSelect'
 import { applyDomain, extractDomainSuffix } from '../utils/strings'
 import { isServiceAccountAdmin } from '../utils/groupAccess'
+import { isDuplicateConflict } from '../utils/errors'
 
 export default function ServiceAccountCreate() {
   const navigate = useNavigate()
@@ -68,7 +69,11 @@ export default function ServiceAccountCreate() {
       void queryClient.invalidateQueries({ queryKey: ['service-accounts-list'] })
       navigate(`/admin/service-accounts/${encodeURIComponent(trimmedName)}`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : t('serviceAccounts.create.messages.failed'))
+      if (isDuplicateConflict(error)) {
+        setMessage(t('common.duplicateValue'))
+      } else {
+        setMessage(error instanceof Error ? error.message : t('serviceAccounts.create.messages.failed'))
+      }
     } finally {
       setLoading(false)
     }

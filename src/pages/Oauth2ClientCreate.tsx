@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { addOauth2Redirect, createOauth2Client } from '../api'
 import { useAccess } from '../auth/AccessContext'
 import { isOauth2Admin } from '../utils/groupAccess'
+import { isDuplicateConflict } from '../utils/errors'
 
 export default function Oauth2ClientCreate() {
   const navigate = useNavigate()
@@ -66,7 +67,11 @@ export default function Oauth2ClientCreate() {
       void queryClient.invalidateQueries({ queryKey: ['oauth2-clients-list'] })
       navigate(`/admin/oauth2/${encodeURIComponent(trimmedName)}`)
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : t('oauth2.create.messages.failed'))
+      if (isDuplicateConflict(error)) {
+        setMessage(t('common.duplicateValue'))
+      } else {
+        setMessage(error instanceof Error ? error.message : t('oauth2.create.messages.failed'))
+      }
     } finally {
       setSaving(false)
     }

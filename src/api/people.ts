@@ -177,6 +177,18 @@ export async function createCredentialResetToken(
   return request<CredentialResetToken>(path, { method: 'GET' })
 }
 
+export async function sendCredentialResetIntent(
+  id: string,
+  input: { ttl?: number; email?: string },
+) {
+  await apiRequest(`/v1/person/${encodeURIComponent(id)}/_credential/_update_intent_send`, 'post', {
+    body: {
+      ttl: input.ttl,
+      email: input.email,
+    },
+  })
+}
+
 export async function fetchUnixToken(id: string): Promise<UnixUserToken> {
   return request<UnixUserToken>(`/v1/account/${encodeURIComponent(id)}/_unix/_token`, {
     method: 'GET',

@@ -9,6 +9,7 @@ import {
   fetchCredentialStatus,
   fetchPerson,
   fetchUnixToken,
+  sendCredentialResetIntent,
   setPersonAttr,
   setPersonUnix,
   updatePerson,
@@ -19,7 +20,12 @@ import { stripDomain } from '../utils/strings'
 import { getPasskeySummary, getPasswordState, getTotpSummary } from '../utils/credentials'
 import { formatExpiryTime, fromLocalDateTime, toLocalDateTime } from '../utils/dates'
 import { emailsEqual, normalizeEmails } from '../utils/email'
-import { isNotFound } from '../utils/errors'
+import {
+  isDuplicateConflict,
+  isNotFound,
+  isResetIntentAccountEmailNotFound,
+  isResetIntentMissingEmail,
+} from '../utils/errors'
 import {
   hasAnyGroup,
   isHighPrivilege,
@@ -71,7 +77,13 @@ export default function PersonDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
-  const { canEdit, memberOf, requestReauth } = useAccess()
+  const {
+    canEdit,
+    memberOf,
+    requestReauth,
+    mailSendingConfigured,
+    ensureMailSendingConfigured,
+  } = useAccess()
   const queryClient = useQueryClient()
   const [loading, setLoading] = useState(true)
   const [message, setMessage] = useState<string | null>(null)
@@ -87,6 +99,8 @@ export default function PersonDetail() {
   const [resetMessage, setResetMessage] = useState<string | null>(null)
   const [resetLoading, setResetLoading] = useState(false)
   const [resetTtl, setResetTtl] = useState('3600')
+  const [resetEmail, setResetEmail] = useState('')
+  const [showResetEmailControls, setShowResetEmailControls] = useState(true)
   const [posixToken, setPosixToken] = useState<UnixUserToken | null>(null)
   const [posixMessage, setPosixMessage] = useState<string | null>(null)
   const [posixLoading, setPosixLoading] = useState(false)
@@ -135,6 +149,18 @@ export default function PersonDetail() {
   )
 
   const allowResetToken = canResetToken && (isPeopleAdmin || !personHighPrivilege)
+
+  useEffect(() => {
+    if (!allowResetToken) return
+    let active = true
+    void ensureMailSendingConfigured().then((configured) => {
+      if (!active) return
+      setShowResetEmailControls(configured)
+    })
+    return () => {
+      active = false
+    }
+  }, [allowResetToken, ensureMailSendingConfigured])
 
   const passkeySummary = useMemo(() => {
     if (!personMeta) return null
@@ -331,7 +357,11 @@ export default function PersonDetail() {
       await refreshPersonState()
       setIdentityMessage(t('people.messages.identityUpdated'))
     } catch (error) {
-      setIdentityMessage(error instanceof Error ? error.message : t('people.messages.identityFailed'))
+      if (isDuplicateConflict(error)) {
+        setIdentityMessage(t('common.duplicateValue'))
+      } else {
+        setIdentityMessage(error instanceof Error ? error.message : t('people.messages.identityFailed'))
+      }
     }
   }
 
@@ -358,7 +388,11 @@ export default function PersonDetail() {
       await refreshPersonState()
       setEmailMessage(t('people.messages.emailUpdated'))
     } catch (error) {
-      setEmailMessage(error instanceof Error ? error.message : t('people.messages.emailFailed'))
+      if (isDuplicateConflict(error)) {
+        setEmailMessage(t('common.duplicateValue'))
+      } else {
+        setEmailMessage(error instanceof Error ? error.message : t('people.messages.emailFailed'))
+      }
     }
   }
 
@@ -400,7 +434,11 @@ export default function PersonDetail() {
       await refreshPersonState()
       setValidityMessage(t('people.messages.validityUpdated'))
     } catch (error) {
-      setValidityMessage(error instanceof Error ? error.message : t('people.messages.validityFailed'))
+      if (isDuplicateConflict(error)) {
+        setValidityMessage(t('common.duplicateValue'))
+      } else {
+        setValidityMessage(error instanceof Error ? error.message : t('people.messages.validityFailed'))
+      }
     }
   }
 
@@ -429,6 +467,36 @@ export default function PersonDetail() {
       setResetMessage(t('people.messages.resetCreated'))
     } catch (error) {
       setResetMessage(error instanceof Error ? error.message : t('people.messages.resetFailed'))
+    } finally {
+      setResetLoading(false)
+    }
+  }
+
+  const handleSendResetIntent = async () => {
+    if (!id) return
+    if (!allowResetToken) return
+    if (!canEdit) {
+      requestReauth()
+      return
+    }
+    setResetLoading(true)
+    setResetMessage(null)
+    try {
+      const ttlValue = resetTtl.trim()
+      const ttl = ttlValue ? Number(ttlValue) : undefined
+      const ttlSeconds =
+        ttl && Number.isFinite(ttl) && ttl > 0 ? Math.trunc(ttl) : undefined
+      const email = resetEmail.trim() || undefined
+      await sendCredentialResetIntent(id, { ttl: ttlSeconds, email })
+      setResetMessage(t('people.messages.resetSent'))
+    } catch (error) {
+      if (isResetIntentMissingEmail(error)) {
+        setResetMessage(t('people.messages.resetSendMissingEmail'))
+      } else if (isResetIntentAccountEmailNotFound(error)) {
+        setResetMessage(t('people.messages.resetSendEmailNotFound'))
+      } else {
+        setResetMessage(error instanceof Error ? error.message : t('people.messages.resetSendFailed'))
+      }
     } finally {
       setResetLoading(false)
     }
@@ -731,6 +799,21 @@ export default function PersonDetail() {
                   {t('people.detail.resetTtlHelp')}
                 </span>
               </div>
+              {showResetEmailControls && mailSendingConfigured && (
+                <div className="field">
+                  <label>{t('people.labels.resetEmailOptional')}</label>
+                  <input
+                    value={resetEmail}
+                    onChange={(event) => setResetEmail(event.target.value)}
+                    placeholder={t('people.detail.resetEmailPlaceholder')}
+                    readOnly={!canEdit}
+                    onFocus={() => requestReauthIfNeeded(allowResetToken)}
+                  />
+                  <span className="muted-text">
+                    {t('people.detail.resetEmailHint')}
+                  </span>
+                </div>
+              )}
               <div className="panel-actions">
                 <button
                   className="primary-button"
@@ -740,6 +823,16 @@ export default function PersonDetail() {
                 >
                   {resetLoading ? t('people.detail.resetCreating') : t('people.detail.resetCreate')}
                 </button>
+                {showResetEmailControls && mailSendingConfigured && (
+                  <button
+                    className="secondary-button"
+                    type="button"
+                    onClick={handleSendResetIntent}
+                    disabled={resetLoading}
+                  >
+                    {resetLoading ? t('people.detail.resetSending') : t('people.detail.resetSend')}
+                  </button>
+                )}
               </div>
             </>
           )}

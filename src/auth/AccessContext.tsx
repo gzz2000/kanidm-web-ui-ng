@@ -3,12 +3,21 @@ import type { FormEvent } from 'react'
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { authPasskey, authPassword, authTotp, fetchUserAuthToken, reauthBegin } from '../api'
+import {
+  authPasskey,
+  authPassword,
+  authTotp,
+  fetchGroupMembers,
+  fetchUserAuthToken,
+  reauthBegin,
+} from '../api'
+import { clearAuthToken } from '../api'
 import type { AuthAllowed, AuthResponse } from '../api/types'
 import type { components } from '../api/schema'
 import { useAuth } from './AuthContext'
 import { performPasskeyRequest } from './webauthn'
 import { hasAnyGroup } from '../utils/groupAccess'
+import { isSessionMayNotReauth } from '../utils/errors'
 
 type UserAuthToken = components['schemas']['UserAuthToken']
 
@@ -23,6 +32,8 @@ type AccessContextValue = {
   unlockedMinutes: number | null
   permissions: AccessPermissions
   memberOf: string[]
+  mailSendingConfigured: boolean
+  ensureMailSendingConfigured: () => Promise<boolean>
   requestReauth: () => void
 }
 
@@ -75,6 +86,12 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
   const [reauthTotp, setReauthTotp] = useState('')
   const [reauthPassword, setReauthPassword] = useState('')
 
+  const handleTerminalReauthError = useCallback(() => {
+    setReauthOpen(false)
+    clearAuthToken()
+    window.dispatchEvent(new Event('kanidm:auth-expired'))
+  }, [])
+
   const memberOf = useMemo(() => user?.memberOf ?? [], [user?.memberOf])
   const permissions = useMemo(
     () => ({
@@ -112,6 +129,34 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
     gcTime: 120_000,
     retry: 0,
   })
+
+  const messageSendersQuery = useQuery({
+    queryKey: ['message-senders-members'],
+    queryFn: () => fetchGroupMembers('idm_message_senders'),
+    enabled: false,
+    staleTime: 60_000,
+    gcTime: 300_000,
+    retry: 0,
+  })
+
+  const mailSendingConfigured = messageSendersQuery.isSuccess
+    ? messageSendersQuery.data.length > 0
+    : true
+
+  const ensureMailSendingConfigured = useCallback(async () => {
+    if (messageSendersQuery.isSuccess) {
+      return messageSendersQuery.data.length > 0
+    }
+    try {
+      const result = await messageSendersQuery.refetch()
+      if (result.isSuccess) {
+        return result.data.length > 0
+      }
+    } catch {
+      // fall through to optimistic default
+    }
+    return true
+  }, [messageSendersQuery])
 
   useEffect(() => {
     if (status !== 'authenticated') {
@@ -151,11 +196,15 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
         setReauthMessage(t('profile.messageReauthStartFailed'))
       }
     } catch (error) {
+      if (isSessionMayNotReauth(error)) {
+        handleTerminalReauthError()
+        return
+      }
       setReauthMessage(error instanceof Error ? error.message : t('profile.messageReauthFailed'))
     } finally {
       setReauthLoading(false)
     }
-  }, [reauthLoading, setAuthenticated, status, t, uatQuery])
+  }, [handleTerminalReauthError, reauthLoading, setAuthenticated, status, t, uatQuery])
 
   const handleReauthPassword = async (event: FormEvent) => {
     event.preventDefault()
@@ -211,6 +260,10 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
         setReauthMessage(t('profile.messageReauthIncomplete'))
       }
     } catch (error) {
+      if (isSessionMayNotReauth(error)) {
+        handleTerminalReauthError()
+        return
+      }
       setReauthMessage(error instanceof Error ? error.message : t('profile.messageReauthFailed'))
     } finally {
       setReauthLoading(false)
@@ -238,6 +291,10 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
         setReauthMessage(t('profile.messageReauthPasskeyFailed'))
       }
     } catch (error) {
+      if (isSessionMayNotReauth(error)) {
+        handleTerminalReauthError()
+        return
+      }
       setReauthMessage(
         error instanceof Error ? error.message : t('profile.messageReauthPasskeyFailed'),
       )
@@ -257,9 +314,19 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
       unlockedMinutes,
       permissions,
       memberOf,
+      mailSendingConfigured,
+      ensureMailSendingConfigured,
       requestReauth,
     }),
-    [canEdit, unlockedMinutes, permissions, memberOf, requestReauth],
+    [
+      canEdit,
+      unlockedMinutes,
+      permissions,
+      memberOf,
+      mailSendingConfigured,
+      ensureMailSendingConfigured,
+      requestReauth,
+    ],
   )
 
   return (
